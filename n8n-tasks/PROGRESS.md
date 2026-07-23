@@ -1,99 +1,66 @@
-# Progress Board — Solschein n8n Build
+# Solschein — Build Progress
 
-Update this file as tasks move. Status legend: ⬜ Not started · 🟡 In progress · ✅ Done · ⛔ Blocked
+Tracker for the 4-member split of [SOLSHEIN_BR_EN.md](../SOLSHEIN_BR_EN.md).
 
-Last updated: 2026-07-23
+Status: ⬜ not started · 🟨 in progress · ✅ done · ⛔ blocked
 
----
+## Members
 
-## Build order (dependencies)
+| # | Area | File | Owner |
+|---|---|---|---|
+| 1 | WhatsApp ordering & pickup | [MEMBER_1](MEMBER_1_customer_ordering.md) | _tbd_ |
+| 2 | Delivery & couriers | [MEMBER_2](MEMBER_2_delivery_couriers.md) | _tbd_ |
+| 3 | Pricing, payment, HungerStation | [MEMBER_3](MEMBER_3_pricing_payment_hungerstation.md) | _tbd_ |
+| 4 | Dashboard, inventory, profit | [MEMBER_4](MEMBER_4_dashboard_inventory_profit.md) | _tbd_ |
 
-1. **Member 4** ships DB schema + seed data → unblocks everyone.
-2. **Member 3** ships `set-status` + pricing → unblocks M1/M2 integration.
-3. **Member 1** & **Member 2** build in parallel on top.
+## Task status
 
----
+### Member 1 — Ordering
+- ⬜ 1.1 Welcome & main menu
+- ⬜ 1.2 Menu display
+- ⬜ 1.3 Product selection
+- ⬜ 1.4 Fulfillment choice
+- ⬜ 1.5 Pickup flow
+- ⬜ 1.6 Reorder & track
+
+### Member 2 — Delivery
+- ⬜ 2.1 Receive location
+- ⬜ 2.2 Courier bidding
+- ⬜ 2.3 Courier selection
+- ⬜ 2.4 Confirmation fan-out
+- ⬜ 2.5 Command-driven delivery flow
+- ⬜ 2.6 Courier log
+- ⬜ 2.7 Problem handling
+
+### Member 3 — Pricing & Payment
+- ⬜ 3.1 Delivery discount tiers
+- ⬜ 3.2 Cart upsell nudge
+- ⬜ 3.3 Final price confirmation
+- ⬜ 3.4 Payment
+- ⬜ 3.5 HungerStation channel
+
+### Member 4 — Dashboard
+- ⬜ 4.1 Data model (**blocker — do first**)
+- ⬜ 4.2 Local web dashboard
+- ⬜ 4.3 Order statuses
+- ⬜ 4.4 Inventory
+- ⬜ 4.5 Cost & profit
+- ⬜ 4.6 Management screens
+
+## Cross-cutting decisions (agree before coding)
+- ⛔ **DB schema** (Member 4 owns, blocks 1–3) — deliver first.
+- ⬜ Cart object schema (M1 ↔ M2 ↔ M3).
+- ⬜ Event contract: "paid"/"received" → inventory + courier fan-out.
+- ⬜ Session state store (WhatsApp number as key).
+- ⬜ Payment gateway choice (Apple Pay/Mada).
+- ⬜ Maps/geocoding API (distance).
+- ⬜ Who generates the 4-digit delivery code (recommend M2).
+- ⬜ HungerStation menu-mapping table (M3 ↔ M4).
 
 ## Milestones
-
-| # | Milestone | Owner | Status |
-| --- | --- | --- | --- |
-| M0 | DB schema + seed data published | M4 | ⬜ |
-| M1 | Order status machine + `set-status` live | M3 | ⬜ |
-| M2 | WhatsApp inbound + welcome menu working | M1 | ⬜ |
-| M3 | Menu → cart → pickup flow (end to end) | M1 | ⬜ |
-| M4 | Payment link + webhook (paid orders on dashboard) | M3 | ⬜ |
-| M5 | Delivery: location → quote → broadcast → select | M2 | ⬜ |
-| M6 | Courier tracking (وصلت/استلمت/قريب/تسليم) + code | M2+M3 | ⬜ |
-| M7 | Dashboard live (orders, statuses, notifications) | M4 | ⬜ |
-| M8 | Full Phase-1 happy path (pickup + delivery) demo | All | ⬜ |
-
----
-
-## Per-member status
-
-### Member 1 — Customer Ordering & WhatsApp  → [details](MEMBER_1_customer_ordering.md)
-| Task | Status |
-| --- | --- |
-| WhatsApp Cloud API + webhook verified | ⬜ |
-| Inbound router + session load | ⬜ |
-| Welcome message (4 buttons) | ⬜ |
-| Menu categories + product lists (DB-driven) | ⬜ |
-| Product configuration (qty/milk/sugar/ice/extras/notes) | ⬜ |
-| Cart + subtotal | ⬜ |
-| Reorder ("إعادة آخر طلب") | ⬜ |
-| Fulfillment choice branching | ⬜ |
-| Pickup flow end-to-end | ⬜ |
-| Central Arabic template file | ⬜ |
-
-### Member 2 — Delivery & Couriers  → [details](MEMBER_2_delivery_couriers.md)
-| Task | Status |
-| --- | --- |
-| Receive + validate location | ⬜ |
-| Distance/neighborhood/rough quote | ⬜ |
-| Eligible-courier selection (3–5) | ⬜ |
-| Anonymized broadcast (privacy rule) | ⬜ |
-| Quote parsing + wait window | ⬜ |
-| Selection logic | ⬜ |
-| Winner confirm + loser release | ⬜ |
-| `وصلت` / `استلمت` / `قريب` / `تسليم` handling | ⬜ |
-| No-courier flow | ⬜ |
-| Courier-canceled flow | ⬜ |
-
-### Member 3 — Pricing, Payment & State  → [details](MEMBER_3_pricing_payment_state.md)
-| Task | Status |
-| --- | --- |
-| `set-status` + transition validation | ⬜ |
-| Delivery support calculation | ⬜ |
-| BR pricing examples verified | ⬜ |
-| Upsell nudge | ⬜ |
-| Final price summary + approval | ⬜ |
-| Payment gateway integration | ⬜ |
-| Payment webhook (success/failure) | ⬜ |
-| 4-digit code gen + validation | ⬜ |
-| Product-unavailable flow | ⬜ |
-| 16-status machine wired | ⬜ |
-
-### Member 4 — Dashboard, DB & Registry  → [details](MEMBER_4_dashboard_data.md)
-| Task | Status |
-| --- | --- |
-| Schema published (contract) | ⬜ |
-| Migrations + seed data | ⬜ |
-| Dashboard: orders + status board | ⬜ |
-| Dashboard: order details + prep time | ⬜ |
-| Dashboard: price/support visibility | ⬜ |
-| Dashboard: status/stock/price controls | ⬜ |
-| Café push notifications | ⬜ |
-| Courier registry + metrics | ⬜ |
-| Reports (sales + history) | ⬜ |
-
----
-
-## Blockers / notes
-
-- _(none yet — log here: `YYYY-MM-DD — <who> blocked on <what>`)_
-
-## Decisions log
-
-- 2026-07-23 — Stack defaults chosen (see [README](README.md)): n8n + WhatsApp Cloud API +
-  Postgres + Moyasar/Tap/HyperPay + NocoDB/Baserow. Revisit before Phase 2.
+1. ⬜ Schema + shared contracts locked.
+2. ⬜ WhatsApp pickup happy path (M1 + M3 payment + M4 dashboard).
+3. ⬜ Delivery happy path (M2 + M3).
+4. ⬜ HungerStation channel (M3 + M4).
+5. ⬜ Inventory + cost/profit live.
+6. ⬜ Problem-handling paths.

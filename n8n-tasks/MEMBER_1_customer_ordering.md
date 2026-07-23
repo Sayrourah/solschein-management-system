@@ -1,71 +1,52 @@
-# Member 1 — Customer Ordering & WhatsApp Conversation
+# Member 1 — WhatsApp Customer Ordering & Pickup
 
-**Owns:** everything the customer sees before a payment link is generated — the WhatsApp
-entry point, the menu, product configuration, the cart, and the pickup flow.
+**Owner:** _(assign)_
+**Spec sections:** Customer Journey · Choosing Products · Fulfillment Method · Pickup from the Café
 
-BR sections covered: بدء الطلب, اختيار المنتجات, اختيار طريقة الاستلام, الاستلام من المقهى,
-تشجيع العميل على زيادة السلة (message side).
+## Scope
 
----
+The WhatsApp front door. Everything from first customer contact through product selection and the full pickup flow. Hand off to Member 2 when delivery is chosen; hand off to Member 3 for payment.
 
-## Responsibilities
+## Tasks
 
-- Own the **WhatsApp inbound webhook** and message router (buttons, list replies, text,
-  location messages).
-- Own the **central Arabic message template list** (welcome, menu, summaries, prompts).
-- Build the guided ordering conversation and the shopping cart.
-- Build the **pickup** flow end-to-end (summary → time → café location → hand off to M3 for payment).
+### 1.1 Welcome & main menu
+- WhatsApp webhook receives inbound message.
+- Send welcome with 4 options: New order · Track current order · Reorder last · Talk to staff.
+- Route each option to its flow.
 
-## n8n workflows to build
+### 1.2 Menu display
+- Show menu sections: Matcha, Coffee, Desserts, Add-ons, Offers.
+- Pull products from shared DB (menu owned by Member 4 dashboard).
+- Respect "Product Unavailable" flag (disabled products hidden/blocked).
 
-1. **`m1-whatsapp-inbound`** — single webhook that receives all WhatsApp events, verifies
-   the signature, loads/creates the customer `session` (Member 4 table), and routes to the
-   right sub-workflow based on session state + message type.
-2. **`m1-welcome-menu`** — sends welcome message with 4 reply buttons:
-   `طلب جديد` / `متابعة طلب حالي` / `إعادة آخر طلب` / `التواصل مع موظف`.
-3. **`m1-menu-browse`** — sends menu categories as an interactive **list** (ماتشا، قهوة،
-   حلويات، إضافات، عروض), then products within a category. Reads products from Member 4's DB
-   (only `is_available = true`).
-4. **`m1-product-configure`** — per selected product, collect: quantity, milk type, sugar
-   level, ice amount, extras, notes. Store the configured line item in the cart.
-5. **`m1-cart`** — show cart, allow add-more / remove / continue; compute product subtotal;
-   hand the cart to M3 for upsell nudge, then to the fulfillment choice.
-6. **`m1-fulfillment-choice`** — ask pickup vs delivery; branch to pickup flow (here) or
-   emit event to Member 2 (delivery).
-7. **`m1-pickup-flow`** — show order summary + product total + prep time + café location +
-   trigger M3 payment link. After paid: send "طلبك جاهز للاستلام" when café marks ready,
-   accept customer `وصلت`, notify dashboard.
+### 1.3 Product selection
+Capture per item:
+- Product, quantity, milk type, sugar level, ice amount, add-ons, special notes.
+- Build cart in session state.
 
-## Key details from the BR
+### 1.4 Fulfillment choice
+- Offer: Pickup from café OR Delivery.
+- Delivery route: pass cart to Member 2 flow.
+- Pickup route: continue below.
 
-- Welcome options: طلب جديد / متابعة طلب حالي / إعادة آخر طلب / التواصل مع موظف.
-- Product options: الكمية، نوع الحليب، مستوى السكر، كمية الثلج، الإضافات، الملاحظات.
-- "إعادة آخر طلب" reloads the customer's last order into the cart (needs M4 order history).
-- Pickup: on ready → notify customer; customer sends `وصلت` → dashboard notification.
+### 1.5 Pickup flow
+- Show: order summary, product total, estimated prep time, café location, payment link (link from Member 3).
+- After paid: create order in dashboard (status Paid, channel WhatsApp).
+- When order ready: send "ready for pickup" message.
+- Customer replies "I'm here" → notify café owners in dashboard.
+
+### 1.6 Reorder & track
+- Reorder last: fetch customer's last order, re-add to cart.
+- Track: read order status from DB, reply with current status.
+
+## Interfaces / handoffs
+- **Cart object** → shared with Member 2 (delivery) and Member 3 (pricing/payment). Agree schema early.
+- **Order record** → written to shared DB read by Member 4 dashboard.
+- **Session state** — how you persist mid-order (customer WhatsApp number as key).
 
 ## Dependencies
+- Menu + product availability from Member 4.
+- Payment link from Member 3.
 
-- **Member 4**: `sessions`, `products`, `customers`, `orders` tables + read APIs/queries.
-- **Member 3**: "create payment link" sub-workflow, upsell nudge, order-status setter.
-- **Member 2**: delivery entry event (pass the cart + customer session).
-
-## Deliverables
-
-- [ ] Exported workflows in `/workflows/m1-*.json`
-- [ ] Central template file `/content/messages.ar.md` (all Arabic copy)
-- [ ] Session state diagram for the conversation router
-
-## Task checklist
-
-- [ ] WhatsApp Cloud API app + number connected; webhook verified in n8n
-- [ ] `m1-whatsapp-inbound` router with signature verification + session load
-- [ ] Welcome message with 4 buttons
-- [ ] Menu categories list + product list (DB-driven, availability-aware)
-- [ ] Product configuration (qty, milk, sugar, ice, extras, notes)
-- [ ] Cart view + subtotal + add/remove
-- [ ] "إعادة آخر طلب" reorder path
-- [ ] Fulfillment choice (pickup vs delivery) with correct branching
-- [ ] Pickup flow: summary, prep time, café location, payment handoff
-- [ ] Pickup post-payment: "جاهز للاستلام" + customer `وصلت` → dashboard
-- [ ] "التواصل مع موظف" handoff path
-- [ ] All copy sourced from central template file
+## Done when
+- Customer can order start→pickup→paid→ready→"I'm here" fully over WhatsApp.
