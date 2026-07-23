@@ -63,3 +63,25 @@ Shorter flow (HungerStation owns customer, payment, delivery):
 
 ## Done when
 - Delivery price correct across all 4 spec examples; payment link → confirmed → order flows; HungerStation order lands in dashboard with inventory deducted.
+
+---
+
+## Built
+
+Two live n8n workflows in project `JET1jtVaCxN3vMTy` (personal), **inactive** until creds attached. SDK builder variant. Storage = M4 Data Tables (`orders` `hWfPbrXmGYFK3ZNW`).
+
+| Workflow | ID | Flow |
+|---|---|---|
+| Solschein — Pricing & Payment (M3) | `MFvdPL38Og8eJk1j` | 3 webhooks: **checkout** (compute discount + upsell + summary → write order `Awaiting price approval` → send summary), **approve** (customer YES → gateway payment link → `Awaiting payment` → send link), **payment-callback** (gateway → `Paid` + emit paid event to M2/M4, or payment-failed branch). |
+| Solschein — HungerStation Channel (M3) | `a5p3DJqxI5ycGAae` | 2 webhooks: **hungerstation** (map items → create `hungerstation` order `New` → signal M4 received → ack HS), **hungerstation-status** (café status → reduced set → push to HS). |
+
+**Deterministic logic (drop bodies into Code nodes, `node`-checked):** [member3_pricing.js](member3_pricing.js) — `deliveryPricing` (all 4 spec examples: 27/15→42, 38/15→51, 52/17→65, 83/16→91), `cafeSupport` tiers, `upsellNudge` (exact spec wording), `priceSummary`, `paymentRequest`/`paymentResult`, `mapHsItems`/`hsToOrder`, `orderEvent`. Run: `node member3_pricing.js` → OK.
+
+**Discount tiers (3.1):** <30 → 0 · 30–44.99 → 2 · 45–59.99 → 4 · 60–79.99 → 6 · ≥80 → 8. `customer delivery = courier − support` floored at 0; courier keeps full price.
+
+**Seams for go-live (on-canvas sticky notes):**
+- Meta WhatsApp credential + phoneNumberId on the Send nodes (shared with M1/M2).
+- Payment gateway credential on **Create Payment Link** (Moyasar shown — Apple Pay/Mada/cards enabled on the gateway account) + real `callback_url` host in Build Payment Request. **Confirm gateway choice.**
+- Internal **order-paid / order-received** event URL → M2 (courier fan-out) + M4 (inventory deduct). M3 emits; M2/M4 need receiver webhooks.
+- **MENU_MAP** in Map HS Order is empty — fill it (HS item id/name → café sku) or back it with a Data Table shared with M4. Unmatched items still save (sku null + `hs_ref`) and set `needs_mapping`.
+- **Assumption confirmed in spec:** HungerStation owns its own payment + delivery.

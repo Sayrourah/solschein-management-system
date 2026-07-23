@@ -51,3 +51,38 @@ View new orders, statuses, payment status, product/add-on data, set prep time, c
 
 ## Done when
 - Dashboard shows live orders both channels, inventory deducts on sale, low-stock auto-disables, cost/profit matches spec Iced Matcha Latte example (cost 3.80, margin 62%).
+
+---
+
+## Built
+
+Storage = **n8n Data Tables** (native; no external DB). Project `JET1jtVaCxN3vMTy` (personal). Data Tables are flat — types string/number/boolean/date only — so lists (order items, product recipes) live in **JSON-string** columns, parsed in a Code node. `ponytail:` native Data Tables over standing up Postgres; revisit if reporting needs SQL joins.
+
+**Schema contract (M1–M3 build against this):**
+
+| Table | ID | Columns |
+|---|---|---|
+| products | `bgJbtTjZ6oGjWJNB` | sku, name, section, sale_price, available(bool), is_addon(bool), recipe(JSON `[{item,qty}]`) |
+| inventory | `oSXZXOU4SvH6f5OS` | name, unit, qty_in_stock, low_threshold, unit_cost |
+| orders | `hWfPbrXmGYFK3ZNW` | order_no, channel, status, customer_number, fulfillment, items(JSON `[{sku,qty,addons,notes}]`), product_total, courier_price, cafe_support, delivery_price, total, courier_number, delivery_code, created_at |
+| couriers | `zdaBo4Uw6U6dSS15` | number, name, neighborhoods, completed_orders, cancellations, avg_price, rating, punctual, notes |
+| purchases | `3FkHAa8Xpeqg6upr` | item, qty_bought, unit, total_price, created_at |
+
+- **channel**: `whatsapp` \| `hungerstation`. **status**: the spec status strings (16 for WhatsApp, 5-subset for HungerStation).
+- Add-ons are `products` rows with `is_addon=true` and their own recipe.
+- Seeded: 6 inventory rows + Iced Matcha Latte (validates schema + cost example).
+
+**Logic delivered (drop bodies into Code nodes):**
+- [member4_costprofit.js](member4_costprofit.js) — `costProfit(product, inventoryByName)` → {cost, profit, margin}. Check passes (3.80 / 6.20 / 62%).
+- [member4_inventory.js](member4_inventory.js) — `deductOrder(order, productsBySku, inventoryByName)` → deductions, newStock, disable[], warn[]. Runs on order paid/received. Check passes.
+- **Restock / unit cost** (trivial, no separate file): on a purchase row, `unit_cost = total_price / qty_bought` and `qty_in_stock += qty_bought`. Same receipt feeds cost + restock.
+
+**Live workflows (both ACTIVE — Data Tables only, no external creds):**
+- **Café Dashboard** `gCEvSL04reabbDfq` — GET `http://localhost:5678/webhook/dashboard` server-renders one self-contained HTML page: KPIs (orders/revenue/profit/pending/low-stock), sales+profit by period (today/7d/30d), orders table (both channels, colored status, per-order profit), product cost/profit/margin, inventory + low-stock. Reads all Data Tables at request time; reload to refresh. Cost/profit verified live (Iced Matcha Latte 3.80 / 6.20 / 62%). Covers spec 4.2 + the view side of 4.6; edit actions still via the built-in Data Table UI. Staff login deferred (local network).
+- **Order Events / Inventory** `1jNMPpXDyhlt99B8` — webhooks `internal/order-paid` (WhatsApp) + `internal/order-received` (HungerStation), fired by Member 3. Reads order items → product recipes → deducts inventory (incl. add-on recipes) → auto-disables any product whose ingredient hit ≤0. Implements task 4.4 end-to-end; mirrors [member4_inventory.js](member4_inventory.js). Tested: matcha-style order 100−14=86, zero-stock item → product disabled.
+
+**Deferred (question before building):**
+- Edit-side dashboard UI (change prep time, prices, recipes, enter purchases) — still via n8n's built-in Data Table editor; build custom forms only when the café outgrows it.
+- Best-selling / most-profitable ranking views — add to the dashboard when someone needs them.
+
+**Not Member 4's job** (called out to avoid overlap): delivery-support discount math lives in Member 3; courier bidding/selection in Member 2. Member 4 only stores the resulting numbers on the order row.
