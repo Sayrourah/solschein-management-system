@@ -21,7 +21,7 @@ Live workflow `K9ktjkAH1IYK5jh4` (AI agent + Gemini). Inactive until WhatsApp/Me
 - ✅ 1.2 Menu display — `get_menu` tool over `products`, `available=true` only.
 - ✅ 1.3 Product selection — agent captures item + customizations; cart schema in [member1_cart.js](member1_cart.js).
 - 🟨 1.4 Fulfillment choice — pickup built; delivery hands `session.cart` to M2 (agent stops).
-- 🟨 1.5 Pickup flow — `create_order` → M4 `orders` (status `Awaiting payment`); M3 payment link + ready/"I'm here" push pending.
+- 🟨 1.5 Pickup flow — `create_order` → M4 `orders` (status `Awaiting payment`); ready→"I'm here"→owner-notify logic done + `node`-checked ([member1_pickup.js](member1_pickup.js)); M3 payment link + the outbound push wiring (WhatsApp-cred-gated) pending.
 - ✅ 1.6 Reorder & track — `get_my_orders` tool (sender-scoped).
 
 ### Member 2 — Delivery
