@@ -494,9 +494,40 @@ Inventory covers two kinds of items:
 Each item has:
 
 * Name.
-* Unit (grams, milliliters, or pieces).
+* Unit (grams, milliliters, pieces, or a recipe-specific unit such as teaspoons when the menu uses spoon measures).
 * Current quantity in stock.
 * Low-stock threshold.
+
+## Menu-Derived Recipe Weights and Admin Reminders
+
+The starting recipes and low-stock thresholds are seeded from the approved menu spreadsheet. This lets the dashboard warn the admin before an ingredient actually reaches zero.
+
+Examples from the menu:
+
+* Matcha drinks consume 4 g of matcha per cup, plus 20 ml water.
+* Most cold milk drinks consume 220 ml milk per cup.
+* Cold drinks consume 220 g ice per cup.
+* Coffee of the day consumes 14 g coffee beans per cup.
+* Americano consumes 17 g coffee beans per cup.
+* Vanilla and Secret Solschein syrup servings use up to 23 ml per cup.
+* Caramel syrup uses up to 5 ml per cup.
+* Strawberry syrup uses up to about 30 ml per cup.
+
+Suggested first thresholds:
+
+| Inventory item | Suggested low-stock threshold | Approximate coverage |
+| -------------- | ----------------------------: | -------------------- |
+| Matcha         |                         100 g | About 25 matcha cups |
+| Milk           |                       4,400 ml | About 20 milk drinks |
+| Ice            |                       8,800 g | About 40 cold drinks |
+| Coffee beans   |                         350 g | About 20 Americanos |
+| Vanilla syrup  |                         460 ml | About 20 servings |
+| Caramel syrup  |                         100 ml | About 20 servings |
+| Strawberry syrup |                       600 ml | About 20 servings |
+
+When an item reaches or drops below its threshold, the dashboard shows an admin reminder, for example:
+
+> Low stock: matcha has 90 g left, below the 100 g threshold.
 
 ## Recipes (Bill of Materials)
 

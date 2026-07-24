@@ -23,8 +23,10 @@ Reduced set for HungerStation: New, Preparing, Ready, Delivered, Cancelled.
 - Owners can update status manually; set prep time.
 
 ### 4.4 Inventory
-- Items: ingredients (matcha, beans, milk, syrups, ice) + consumables (cups, lids, sleeves, straws, napkins, bags). Each: name, unit (g/ml/pieces), qty in stock, low-stock threshold.
+- Items: ingredients (matcha, beans, milk, syrups, ice) + consumables (cups, lids, sleeves, straws, napkins, bags). Each: name, unit (g/ml/pieces, or recipe-specific units like tsp), qty in stock, low-stock threshold.
 - Recipes (BOM): per product, items consumed per unit. Add-ons have own small recipes, deducted on top.
+- Menu workbook seed: [member4_inventory_seed.js](member4_inventory_seed.js) maps the approved menu weights into inventory items and product recipes. Examples: matcha 4g/cup, milk 220ml/cup, ice 220g/cold cup, coffee beans 14g for coffee of the day, 17g for Americano.
+- Admin low-stock reminders use the seeded thresholds: matcha 100g (~25 cups), milk 4,400ml (~20 milk drinks), ice 8,800g (~40 cold drinks), coffee beans 350g (~20 Americanos), syrup thresholds by serving size.
 - Packaging bags are deducted once per order: `bags = ceil(total cup-equivalents / 2)`. One cup-equivalent consumes bag capacity; external ice counts as one cup-equivalent. Examples: 1 cup -> 1 bag, 3 cups -> 2 bags.
 - Deduct on paid (WhatsApp) / received (HungerStation): recipe qty × ordered qty, subtract from stock.
 - Restock via purchase receipt (same entry feeds cost).
@@ -72,11 +74,11 @@ Storage = **n8n Data Tables** (native; no external DB). Project `JET1jtVaCxN3vMT
 - **channel**: `whatsapp` \| `hungerstation`. **status**: the spec status strings (16 for WhatsApp, 5-subset for HungerStation).
 - Add-ons are `products` rows with `is_addon=true` and their own recipe.
 - Bags are inventory rows with unit `pieces`; the inventory-deduct logic derives bag usage from order-level cup-equivalents instead of storing bag as a per-product fixed recipe line.
-- Seeded: 6 inventory rows + Iced Matcha Latte (validates schema + cost example).
+- Seed template: [member4_inventory_seed.js](member4_inventory_seed.js) includes the approved menu recipes, add-ons, consumables, and suggested low-stock thresholds. Real `qty_in_stock` and `unit_cost` are filled from purchase receipts.
 
 **Logic delivered (drop bodies into Code nodes):**
 - [member4_costprofit.js](member4_costprofit.js) — `costProfit(product, inventoryByName)` → {cost, profit, margin}. Check passes (3.80 / 6.20 / 62%).
-- [member4_inventory.js](member4_inventory.js) — `deductOrder(order, productsBySku, inventoryByName)` → deductions, newStock, disable[], warn[]. Runs on order paid/received. Check passes.
+- [member4_inventory.js](member4_inventory.js) — `deductOrder(order, productsBySku, inventoryByName)` → deductions, newStock, disable[], warn[]. Deducts base products, add-ons, and order-level bags; `buildAdminLowStockAlerts()` formats admin reminders. Runs on order paid/received. Check passes.
 - **Restock / unit cost** (trivial, no separate file): on a purchase row, `unit_cost = total_price / qty_bought` and `qty_in_stock += qty_bought`. Same receipt feeds cost + restock.
 
 **Live workflows (both ACTIVE — Data Tables only, no external creds):**

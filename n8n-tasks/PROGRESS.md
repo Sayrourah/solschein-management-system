@@ -46,7 +46,7 @@ Two live workflows: `Solschein — Pricing & Payment (M3)` `MFvdPL38Og8eJk1j` (2
 - ✅ 4.1 Data model — 5 n8n Data Tables live (see [MEMBER_4](MEMBER_4_dashboard_inventory_profit.md#built)). Contract unblocked for M1–M3.
 - ✅ 4.2 Local web dashboard — **live workflow `gCEvSL04reabbDfq` (ACTIVE)**, GET `http://localhost:5678/webhook/dashboard` server-renders one HTML page (KPIs, period totals, orders both channels, inventory+low-stock, product cost/profit/margin). CRUD-edit still via built-in Data Table UI. Staff login deferred (local network).
 - ✅ 4.3 Order statuses — enumerated in schema (`orders.status`), see MEMBER_4.
-- ✅ 4.4 Inventory — deduct + low-stock/auto-disable **now live** in Order Events workflow `1jNMPpXDyhlt99B8` (ACTIVE); reference logic [member4_inventory.js](member4_inventory.js).
+- ✅ 4.4 Inventory — deduct + low-stock/auto-disable **now live** in Order Events workflow `1jNMPpXDyhlt99B8` (ACTIVE); reference logic [member4_inventory.js](member4_inventory.js), menu-derived seed [member4_inventory_seed.js](member4_inventory_seed.js).
 - ✅ 4.5 Cost & profit — engine in [member4_costprofit.js](member4_costprofit.js); live in dashboard (verified 3.80 / 6.20 / 62%).
 - ✅ 4.6 Management screens — dashboard covers view/report (orders, statuses, channel, cost/profit/margin, period totals, low-stock). Edit actions (prep time, disable, prices, recipes, purchases) via built-in Data Table UI.
 
