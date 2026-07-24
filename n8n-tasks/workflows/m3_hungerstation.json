@@ -1,0 +1,307 @@
+{
+    "name": "Solschein \u00e2\u20ac\u201d HungerStation Channel (M3)",
+    "nodes": [
+        {
+            "id": "ee19105d-a9e0-4fe7-a364-9e907649ca61",
+            "name": "HungerStation Order Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                0,
+                0
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "m3/hungerstation",
+                "responseMode": "responseNode"
+            },
+            "webhookId": "69599e0a-5a48-4a74-9c04-892465220564"
+        },
+        {
+            "id": "809263c1-e0df-4030-bba1-5d21fa6c4e31",
+            "name": "Map HS Order",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                220,
+                0
+            ],
+            "parameters": {
+                "jsCode": "const b=$input.first().json;const d=b.body||b;const MENU_MAP={};const src=d.items||[];const items=[];const unmatched=[];src.forEach(function(it){const key=(it.id!=null)?it.id:it.name;const sku=MENU_MAP[key]||null;const line={sku:sku,qty:(it.qty!=null)?it.qty:1,addons:it.addons||[],notes:it.notes||''};if(!sku){line.hs_ref=key;unmatched.push(key);}items.push(line);});const order_no='HS-'+String(d.order_no||'');const total=Number(d.total||0);const now=new Date().toISOString();return [{json:{order_no:order_no,channel:'hungerstation',status:'New',customer_number:'',fulfillment:'delivery',items:JSON.stringify(items),product_total:total,courier_price:0,cafe_support:0,delivery_price:0,total:total,courier_number:'',delivery_code:'',created_at:now,needsMapping:unmatched.length>0,unmatched:JSON.stringify(unmatched),hs_order_no:String(d.order_no||'')}}];"
+            }
+        },
+        {
+            "id": "2830e6e0-181f-456d-900b-c87012ee68a9",
+            "name": "Create HS Order",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                440,
+                0
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "insert",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "hWfPbrXmGYFK3ZNW"
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "order_no": "={{ $json.order_no }}",
+                        "channel": "={{ $json.channel }}",
+                        "status": "={{ $json.status }}",
+                        "customer_number": "={{ $json.customer_number }}",
+                        "fulfillment": "={{ $json.fulfillment }}",
+                        "items": "={{ $json.items }}",
+                        "product_total": "={{ $json.product_total }}",
+                        "courier_price": "={{ $json.courier_price }}",
+                        "cafe_support": "={{ $json.cafe_support }}",
+                        "delivery_price": "={{ $json.delivery_price }}",
+                        "total": "={{ $json.total }}",
+                        "courier_number": "={{ $json.courier_number }}",
+                        "delivery_code": "={{ $json.delivery_code }}",
+                        "created_at": "={{ $json.created_at }}"
+                    }
+                },
+                "options": {}
+            }
+        },
+        {
+            "id": "a0d399e1-1ff7-46c1-bb48-b3ccd92541de",
+            "name": "Signal M4 (received)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.4,
+            "position": [
+                660,
+                0
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:5678/webhook/internal/order-received",
+                "sendBody": true,
+                "contentType": "json",
+                "specifyBody": "json",
+                "jsonBody": "={{ { \"type\": \"received\", \"order_no\": $('Map HS Order').item.json.order_no, \"channel\": \"hungerstation\", \"items\": $('Map HS Order').item.json.items } }}",
+                "options": {}
+            },
+            "onError": "continueRegularOutput"
+        },
+        {
+            "id": "25157fd9-9d8c-4319-9e6c-4719733429df",
+            "name": "Ack to HungerStation",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.4,
+            "position": [
+                880,
+                0
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "https://REPLACE-HS-API/orders/status",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "contentType": "json",
+                "specifyBody": "json",
+                "jsonBody": "={{ { \"order_no\": $('Map HS Order').item.json.hs_order_no, \"status\": \"accepted\" } }}",
+                "options": {}
+            },
+            "onError": "continueRegularOutput"
+        },
+        {
+            "id": "09acc4bb-36af-4ca9-845f-ac852f80445f",
+            "name": "Respond HS",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.5,
+            "position": [
+                1100,
+                0
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ { \"ok\": true, \"order_no\": $('Map HS Order').item.json.order_no, \"needs_mapping\": $('Map HS Order').item.json.needsMapping } }}"
+            }
+        },
+        {
+            "id": "f4e51c08-258b-4496-bb6a-136c0da39eee",
+            "name": "HS Status Push Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                0,
+                300
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "m3/hungerstation-status",
+                "responseMode": "responseNode"
+            },
+            "webhookId": "fd9797db-b902-4c08-9d0e-6c9e6afe8e18"
+        },
+        {
+            "id": "25d20cfc-af72-4b5f-84fc-00cafe7aca62",
+            "name": "Map Status",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                220,
+                300
+            ],
+            "parameters": {
+                "jsCode": "const b=$input.first().json;const d=b.body||b;const MAP={accepted:'New',preparing:'Preparing',ready:'Ready',delivered:'Delivered',cancelled:'Cancelled'};const raw=String(d.status||'').toLowerCase();const status=MAP[raw]||String(d.status||'');return [{json:{hs_order_no:String(d.hs_order_no||d.order_no||''),status:status,raw:raw}}];"
+            }
+        },
+        {
+            "id": "c9d2ea7c-6b19-46ce-8301-fda04d2b9116",
+            "name": "Push Status to HungerStation",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.4,
+            "position": [
+                440,
+                300
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "https://REPLACE-HS-API/orders/status",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpHeaderAuth",
+                "sendBody": true,
+                "contentType": "json",
+                "specifyBody": "json",
+                "jsonBody": "={{ { \"order_no\": $json.hs_order_no, \"status\": $json.status } }}",
+                "options": {}
+            },
+            "onError": "continueRegularOutput"
+        },
+        {
+            "id": "840f5c84-5094-4db2-9f4f-bf5cb1cf0066",
+            "name": "Respond Status",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.5,
+            "position": [
+                660,
+                300
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ { \"ok\": true } }}"
+            }
+        },
+        {
+            "id": "2e6dec10-0e62-4a54-a8c2-c641f58db55d",
+            "name": "Sticky Note fa95e37f",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                100,
+                300
+            ],
+            "parameters": {
+                "content": "## HungerStation channel (v1, inactive)\nHS owns customer, payment and delivery \u00e2\u20ac\u201d this is the shorter flow. Seams for go-live: (1) MENU_MAP in Map HS Order is empty \u00e2\u20ac\u201d fill it (HS item id/name -> caf\u00c3\u00a9 sku) or back it with a Data Table shared with Member 4; unmatched items still save on the order (sku null + hs_ref) and set needs_mapping true for manual fixing. (2) HungerStation API credential + real base URL on the two HTTP nodes. (3) internal received-event URL -> Member 4 inventory deduct. Reduced status set: New, Preparing, Ready, Delivered, Cancelled. Logic mirrored in n8n-tasks/member3_pricing.js.",
+                "color": 5
+            }
+        }
+    ],
+    "connections": {
+        "HungerStation Order Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Map HS Order",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Map HS Order": {
+            "main": [
+                [
+                    {
+                        "node": "Create HS Order",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create HS Order": {
+            "main": [
+                [
+                    {
+                        "node": "Signal M4 (received)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Signal M4 (received)": {
+            "main": [
+                [
+                    {
+                        "node": "Ack to HungerStation",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Ack to HungerStation": {
+            "main": [
+                [
+                    {
+                        "node": "Respond HS",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "HS Status Push Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Map Status",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Map Status": {
+            "main": [
+                [
+                    {
+                        "node": "Push Status to HungerStation",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Push Status to HungerStation": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Status",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "availableInMCP": true
+    },
+    "pinData": null,
+    "meta": {
+        "aiBuilderAssisted": true,
+        "builderVariant": "mcp"
+    }
+}

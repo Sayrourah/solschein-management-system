@@ -1,0 +1,222 @@
+{
+    "name": "Solschein \u00e2\u20ac\u201d Caf\u00c3\u00a9 Dashboard (M4)",
+    "nodes": [
+        {
+            "id": "5f5d1d09-f0c9-40d7-b23a-914decbbed8a",
+            "name": "Dashboard",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                0,
+                0
+            ],
+            "parameters": {
+                "httpMethod": "GET",
+                "path": "dashboard",
+                "responseMode": "responseNode"
+            },
+            "webhookId": "39e38a02-f56a-4705-82c5-355b1384f37f"
+        },
+        {
+            "id": "7af5d53f-0f59-4d23-825e-66dbb3e1d44a",
+            "name": "Read Orders",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                220,
+                0
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "hWfPbrXmGYFK3ZNW"
+                },
+                "returnAll": true
+            },
+            "alwaysOutputData": true
+        },
+        {
+            "id": "f514fcc0-19aa-4973-8522-3c7a09203ae0",
+            "name": "Read Products",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                440,
+                0
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "bgJbtTjZ6oGjWJNB"
+                },
+                "returnAll": true
+            },
+            "executeOnce": true,
+            "alwaysOutputData": true
+        },
+        {
+            "id": "0fef9fe7-2a5a-4149-b4dd-b8f6ad615f9d",
+            "name": "Read Inventory",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                660,
+                0
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "oSXZXOU4SvH6f5OS"
+                },
+                "returnAll": true
+            },
+            "executeOnce": true,
+            "alwaysOutputData": true
+        },
+        {
+            "id": "7ca17c05-f82c-47b1-8478-55bf13f17361",
+            "name": "Read Purchases",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                880,
+                0
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "3FkHAa8Xpeqg6upr"
+                },
+                "returnAll": true
+            },
+            "executeOnce": true,
+            "alwaysOutputData": true
+        },
+        {
+            "id": "e959308d-f267-4c66-8188-13a599036db6",
+            "name": "Render Dashboard",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1100,
+                0
+            ],
+            "parameters": {
+                "jsCode": "const orders=$('Read Orders').all().map(i=>i.json).filter(o=>o&&o.order_no);const products=$('Read Products').all().map(i=>i.json).filter(p=>p&&p.sku);const inventory=$('Read Inventory').all().map(i=>i.json).filter(v=>v&&v.name);const invByName={};inventory.forEach(v=>{invByName[v.name]=v;});const prodBySku={};products.forEach(p=>{prodBySku[p.sku]=p;});const n=x=>Number(x||0);const money=x=>n(x).toFixed(2);const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');function cp(p){let recipe=[];try{recipe=JSON.parse(p.recipe||'[]');}catch(e){}let cost=0;for(const l of recipe){const inv=invByName[l.item];if(inv)cost+=n(l.qty)*n(inv.unit_cost);}const sale=n(p.sale_price);const profit=sale-cost;const margin=sale?profit/sale*100:0;return {cost:+cost.toFixed(2),profit:+profit.toFixed(2),margin:+margin.toFixed(2)};}function orderProfit(o){let items=[];try{items=JSON.parse(o.items||'[]');}catch(e){}let pr=0;for(const it of items){const p=prodBySku[it.sku];if(p)pr+=cp(p).profit*n(it.qty);(it.addons||[]).forEach(a=>{const ap=prodBySku[a];if(ap)pr+=cp(ap).profit*n(it.qty);});}return +pr.toFixed(2);}const REVENUE=['Paid','Preparing','Ready','Courier\u00e2\u2020\u2019caf\u00c3\u00a9','Courier arrived','Picked up','On the way','Courier near','Delivered'];const isRev=o=>REVENUE.indexOf(o.status)>=0;const PENDING=['New','Awaiting location','Searching courier','Awaiting price approval','Awaiting payment','Problem'];const now=Date.now();const DAY=86400000;function within(o,days){const t=Date.parse(o.created_at||'');return isFinite(t)&&(now-t)<=days*DAY;}function periodSum(days){let rev=0,pr=0;orders.forEach(o=>{if(isRev(o)&&(days===0||within(o,days))){rev+=n(o.total);pr+=orderProfit(o);}});return {rev:+rev.toFixed(2),pr:+pr.toFixed(2)};}const totalOrders=orders.length;const allTime=periodSum(0);const pending=orders.filter(o=>PENDING.indexOf(o.status)>=0).length;const lowStock=inventory.filter(v=>n(v.qty_in_stock)<=n(v.low_threshold));const today=periodSum(1),week=periodSum(7),month=periodSum(30);function statusClass(s){if(s==='Delivered'||s==='Paid')return 'ok';if(PENDING.indexOf(s)>=0)return 'warn';if(s==='Cancelled'||s==='Problem')return 'bad';return 'mid';}function chan(c){return c==='hungerstation'?'HungerStation':'WhatsApp';}const ordersRows=orders.slice().sort((a,b)=>Date.parse(b.created_at||0)-Date.parse(a.created_at||0)).map(o=>`<tr><td>${esc(o.order_no)}</td><td><span class=\"chan ${o.channel==='hungerstation'?'hs':'wa'}\">${chan(o.channel)}</span></td><td><span class=\"pill ${statusClass(o.status)}\">${esc(o.status)}</span></td><td>${esc(o.fulfillment||'')}</td><td class=\"num\">${money(o.total)}</td><td class=\"num\">${money(orderProfit(o))}</td><td class=\"dim\">${esc((o.created_at||'').slice(0,16).replace('T',' '))}</td></tr>`).join('');const invRows=inventory.map(v=>{const low=n(v.qty_in_stock)<=n(v.low_threshold);return `<tr class=\"${low?'lowrow':''}\"><td>${esc(v.name)}</td><td class=\"num\">${esc(v.qty_in_stock)} ${esc(v.unit||'')}</td><td class=\"num dim\">${esc(v.low_threshold)}</td><td class=\"num dim\">${money(v.unit_cost)}</td><td>${low?'<span class=\"pill bad\">Low</span>':'<span class=\"pill ok\">OK</span>'}</td></tr>`;}).join('');const prodRows=products.filter(p=>!p.is_addon).map(p=>{const c=cp(p);return `<tr><td>${esc(p.name)}</td><td class=\"dim\">${esc(p.section||'')}</td><td class=\"num\">${money(p.sale_price)}</td><td class=\"num\">${money(c.cost)}</td><td class=\"num\">${money(c.profit)}</td><td class=\"num\">${c.margin.toFixed(0)}%</td><td>${p.available?'<span class=\"pill ok\">On</span>':'<span class=\"pill bad\">Off</span>'}</td></tr>`;}).join('');const html=`<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\"><title>Solschein \u00e2\u20ac\u201d Caf\u00c3\u00a9 Dashboard</title><style>:root{--bg:#f6f7f9;--card:#fff;--ink:#1c2530;--dim:#6b7684;--line:#e6e9ee;--ok:#1c7a4d;--okbg:#e5f4ec;--warn:#9a6b00;--warnbg:#fdf3dd;--bad:#a12d2d;--badbg:#fbe6e6;--mid:#334;--midbg:#eef1f5}@media(prefers-color-scheme:dark){:root{--bg:#0f1319;--card:#171d26;--ink:#e7ecf2;--dim:#93a0b0;--line:#252d38;--ok:#7fe0ad;--okbg:#12301f;--warn:#e7c169;--warnbg:#332800;--bad:#f0a1a1;--badbg:#3a1414;--mid:#c3ccd8;--midbg:#1e2530}}*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,Segoe UI,Roboto,sans-serif}.wrap{max-width:1100px;margin:0 auto;padding:24px}header{display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:20px}h1{font-size:22px;margin:0}h1 small{color:var(--dim);font-weight:400;font-size:13px}.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:20px}.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}.kpi .v{font-size:24px;font-weight:700}.kpi .l{color:var(--dim);font-size:12px;text-transform:uppercase;letter-spacing:.04em}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}@media(max-width:820px){.grid{grid-template-columns:1fr}}.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden;margin-bottom:16px}.card h2{font-size:14px;margin:0;padding:12px 16px;border-bottom:1px solid var(--line);text-transform:uppercase;letter-spacing:.04em;color:var(--dim)}.scroll{overflow-x:auto}table{width:100%;border-collapse:collapse;font-size:13.5px}th,td{text-align:left;padding:9px 16px;border-bottom:1px solid var(--line);white-space:nowrap}th{color:var(--dim);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em}tr:last-child td{border-bottom:0}.num{text-align:right;font-variant-numeric:tabular-nums}.dim{color:var(--dim)}.pill{display:inline-block;padding:2px 8px;border-radius:999px;font-size:11.5px;font-weight:600}.pill.ok{background:var(--okbg);color:var(--ok)}.pill.warn{background:var(--warnbg);color:var(--warn)}.pill.bad{background:var(--badbg);color:var(--bad)}.pill.mid{background:var(--midbg);color:var(--mid)}.chan{font-size:11.5px;font-weight:600}.chan.hs{color:#d9762b}.chan.wa{color:#25a06a}.lowrow{background:var(--badbg)}.period{display:grid;grid-template-columns:repeat(3,1fr)}.period>div{padding:12px 16px;border-right:1px solid var(--line)}.period>div:last-child{border-right:0}.period b{display:block;font-size:18px}.empty{padding:16px;color:var(--dim)}footer{color:var(--dim);font-size:12px;margin-top:16px;text-align:center}</style></head><body><div class=\"wrap\"><header><h1>\u00e2\u02dc\u2022 Solschein <small>Caf\u00c3\u00a9 Dashboard</small></h1><div class=\"dim\">${esc(new Date().toLocaleString())}</div></header><div class=\"kpis\"><div class=\"kpi\"><div class=\"v\">${totalOrders}</div><div class=\"l\">Orders</div></div><div class=\"kpi\"><div class=\"v\">${money(allTime.rev)}</div><div class=\"l\">Revenue SAR</div></div><div class=\"kpi\"><div class=\"v\">${money(allTime.pr)}</div><div class=\"l\">Profit SAR</div></div><div class=\"kpi\"><div class=\"v\">${pending}</div><div class=\"l\">Pending</div></div><div class=\"kpi\"><div class=\"v\">${lowStock.length}</div><div class=\"l\">Low stock</div></div></div><div class=\"card\"><h2>Sales &amp; profit by period</h2><div class=\"period\"><div><span class=\"dim\">Today</span><b>${money(today.rev)}</b><span class=\"dim\">profit ${money(today.pr)}</span></div><div><span class=\"dim\">7 days</span><b>${money(week.rev)}</b><span class=\"dim\">profit ${money(week.pr)}</span></div><div><span class=\"dim\">30 days</span><b>${money(month.rev)}</b><span class=\"dim\">profit ${money(month.pr)}</span></div></div></div><div class=\"card\"><h2>Orders</h2><div class=\"scroll\"><table><thead><tr><th>Order</th><th>Channel</th><th>Status</th><th>Type</th><th class=\"num\">Total</th><th class=\"num\">Profit</th><th>Created</th></tr></thead><tbody>${ordersRows||'<tr><td colspan=7 class=empty>No orders yet</td></tr>'}</tbody></table></div></div><div class=\"grid\"><div class=\"card\"><h2>Products \u00e2\u20ac\u201d cost &amp; profit</h2><div class=\"scroll\"><table><thead><tr><th>Product</th><th>Section</th><th class=\"num\">Sale</th><th class=\"num\">Cost</th><th class=\"num\">Profit</th><th class=\"num\">Margin</th><th>Status</th></tr></thead><tbody>${prodRows||'<tr><td colspan=7 class=empty>No products</td></tr>'}</tbody></table></div></div><div class=\"card\"><h2>Inventory</h2><div class=\"scroll\"><table><thead><tr><th>Item</th><th class=\"num\">In stock</th><th class=\"num\">Low at</th><th class=\"num\">Unit cost</th><th>Status</th></tr></thead><tbody>${invRows||'<tr><td colspan=5 class=empty>No inventory</td></tr>'}</tbody></table></div></div></div><footer>Solschein management system \u00c2\u00b7 served by n8n \u00c2\u00b7 reload to refresh</footer></div></body></html>`;return [{json:{html}}];"
+            }
+        },
+        {
+            "id": "d6185649-8caf-4db9-8303-8a5a9ae10c7f",
+            "name": "Serve Page",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.5,
+            "position": [
+                1320,
+                0
+            ],
+            "parameters": {
+                "respondWith": "text",
+                "responseBody": "={{ $json.html }}",
+                "options": {
+                    "responseHeaders": {
+                        "entries": [
+                            {
+                                "name": "content-type",
+                                "value": "text/html; charset=utf-8"
+                            }
+                        ]
+                    }
+                }
+            }
+        }
+    ],
+    "connections": {
+        "Dashboard": {
+            "main": [
+                [
+                    {
+                        "node": "Read Orders",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Orders": {
+            "main": [
+                [
+                    {
+                        "node": "Read Products",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Products": {
+            "main": [
+                [
+                    {
+                        "node": "Read Inventory",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Inventory": {
+            "main": [
+                [
+                    {
+                        "node": "Read Purchases",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Purchases": {
+            "main": [
+                [
+                    {
+                        "node": "Render Dashboard",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Render Dashboard": {
+            "main": [
+                [
+                    {
+                        "node": "Serve Page",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "availableInMCP": true
+    },
+    "pinData": null,
+    "meta": {
+        "aiBuilderAssisted": true,
+        "builderVariant": "mcp"
+    }
+}

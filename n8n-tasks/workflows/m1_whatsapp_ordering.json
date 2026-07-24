@@ -1,0 +1,432 @@
+{
+    "name": "Solschein \u00e2\u20ac\u201d WhatsApp Ordering (M1)",
+    "nodes": [
+        {
+            "parameters": {
+                "updates": [
+                    "messages"
+                ],
+                "options": {}
+            },
+            "id": "a2ed7306-0c3d-4757-a9e4-0b055a13195c",
+            "name": "WhatsApp Trigger",
+            "type": "n8n-nodes-base.whatsAppTrigger",
+            "typeVersion": 1,
+            "position": [
+                240,
+                304
+            ],
+            "webhookId": "dbd88eed-4fc1-492a-9840-e7aab0830b87"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "strict",
+                        "version": 2
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.messages?.[0]?.text?.body }}",
+                            "operator": {
+                                "type": "string",
+                                "operation": "notEmpty"
+                            },
+                            "id": "299571cb-9208-4f00-873a-d74910afcd91"
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "cc67ff2a-e4e8-4e68-9ad9-976c0cd211e1",
+            "name": "Only Inbound Text",
+            "type": "n8n-nodes-base.filter",
+            "typeVersion": 2.2,
+            "position": [
+                464,
+                304
+            ]
+        },
+        {
+            "parameters": {
+                "promptType": "define",
+                "text": "={{ $json.messages[0].text.body }}",
+                "options": {
+                    "systemMessage": "=You are the WhatsApp ordering assistant for Solschein, a matcha & coffee cafe in Saudi Arabia. Today is {{ $now.toFormat(\"DDDD\") }}.\nReply in the customer's language (Arabic or English), short and friendly, WhatsApp style. Use SAR for prices.\n\nMAIN MENU on first contact, offer: 1) New order  2) Track current order  3) Reorder last  4) Talk to staff.\n\nTOOLS:\n- get_menu: returns the available products (sku, name, section, sale_price, is_addon). ALWAYS call it before showing the menu or pricing. Never invent products or prices; only use sku and sale_price it returns. Group by section (Matcha, Coffee, Desserts, Add-ons).\n- get_my_orders: returns this customer's recent orders (newest first). Use for \"Track\" (report the status of the latest open order) and for \"Reorder last\" (re-add the items from the most recent order to a new cart).\n- create_order: writes the confirmed order. Call it ONLY after the customer confirms cart + pickup. Pass items as a JSON array string of {sku,qty,addons,notes}; fold milk/sugar/ice/notes into the notes field; product_total and total computed from get_menu prices (pickup: total = product_total).\n\nORDER FLOW (pickup):\n1. Show menu (get_menu). 2. Capture each item: product, quantity, milk type, sugar level, ice amount, add-ons, special notes. 3. Ask Pickup or Delivery.\n4. DELIVERY is handled by a separate flow \u00e2\u20ac\u201d tell the customer delivery will continue next and stop (do not create the order).\n5. PICKUP: show order summary + product total + estimated prep time (~15 min) + cafe pickup location, then call create_order. After it succeeds, give the order number and tell them a payment link will follow to pay; once paid the order is confirmed and we message them when it is ready for pickup. When they arrive they can reply \"I'm here\".\n\nDo not promise anything outside these tools. If asked for staff, tell them a team member will reply.",
+                    "maxIterations": 15,
+                    "enableStreaming": false
+                }
+            },
+            "id": "aaeb0d34-1e67-49fb-b25a-af69a050ad31",
+            "name": "Order Assistant",
+            "type": "@n8n/n8n-nodes-langchain.agent",
+            "typeVersion": 3.1,
+            "position": [
+                912,
+                304
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "send",
+                "phoneNumberId": "<__PLACEHOLDER_VALUE__Your WhatsApp Business phone number ID__>",
+                "recipientPhoneNumber": "={{ $('WhatsApp Trigger').item.json.messages[0].from }}",
+                "textBody": "={{ $json.output }}",
+                "additionalFields": {}
+            },
+            "id": "84fd7e05-a6a1-483a-91b8-35d5f7db233f",
+            "name": "Reply To Customer",
+            "type": "n8n-nodes-base.whatsApp",
+            "typeVersion": 1.1,
+            "position": [
+                1184,
+                304
+            ],
+            "webhookId": "ee8a274e-b303-40cd-ba3c-89d2b96ac878"
+        },
+        {
+            "parameters": {
+                "modelName": "models/gemini-2.5-flash",
+                "options": {
+                    "temperature": 0.3
+                }
+            },
+            "id": "9aabec58-ce7f-4103-bb2c-0a2a327efbc0",
+            "name": "Gemini Model",
+            "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+            "typeVersion": 1.1,
+            "position": [
+                640,
+                528
+            ],
+            "credentials": {
+                "googlePalmApi": {
+                    "id": "ouFsSM1NfaRbB7bv",
+                    "name": "Google Gemini(PaLM) Api account"
+                }
+            }
+        },
+        {
+            "parameters": {
+                "sessionIdType": "customKey",
+                "sessionKey": "={{ $('WhatsApp Trigger').item.json.messages[\"0\"].from }}",
+                "contextWindowLength": 50
+            },
+            "id": "e2507fb0-3922-40ea-989b-bce81f1b2e27",
+            "name": "Customer Memory",
+            "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+            "typeVersion": 1.4,
+            "position": [
+                800,
+                528
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "bgJbtTjZ6oGjWJNB"
+                },
+                "matchType": "allConditions",
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "available",
+                            "condition": "isTrue"
+                        }
+                    ]
+                },
+                "returnAll": true
+            },
+            "id": "358a16b8-dd98-47e3-a67c-342bd6010ce8",
+            "name": "get_menu",
+            "type": "n8n-nodes-base.dataTableTool",
+            "typeVersion": 1.1,
+            "position": [
+                960,
+                528
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "hWfPbrXmGYFK3ZNW"
+                },
+                "matchType": "allConditions",
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "customer_number",
+                            "keyValue": "={{ $('WhatsApp Trigger').item.json.messages[\"0\"].from }}"
+                        }
+                    ]
+                },
+                "limit": 5,
+                "orderBy": true,
+                "orderByColumn": "created_at"
+            },
+            "id": "51d60704-ad2f-44a1-91d7-f24bb76a6d3b",
+            "name": "get_my_orders",
+            "type": "n8n-nodes-base.dataTableTool",
+            "typeVersion": 1.1,
+            "position": [
+                1120,
+                528
+            ]
+        },
+        {
+            "parameters": {
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "hWfPbrXmGYFK3ZNW"
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "order_no": "={{ \"W-\" + $now.toMillis() }}",
+                        "channel": "whatsapp",
+                        "status": "Awaiting payment",
+                        "customer_number": "={{ $('WhatsApp Trigger').item.json.messages[\"0\"].from }}",
+                        "fulfillment": "={{ $fromAI('fulfillment', 'Fulfillment method, either \"pickup\" or \"delivery\". Default \"pickup\".') }}",
+                        "items": "={{ $fromAI('items', 'JSON array STRING of the cart. Each element {\"sku\",\"qty\",\"addons\":[],\"notes\":\"\"}. Use the exact sku values returned by get_menu. Fold milk/sugar/ice choices into notes.') }}",
+                        "product_total": "={{ $fromAI('product_total', 'Sum over items of (menu sale_price + add-on prices) times quantity, a number in SAR from get_menu prices only.', 'number') }}",
+                        "total": "={{ $fromAI('total', 'Amount the customer pays. For pickup this equals product_total.', 'number') }}",
+                        "created_at": "={{ $now.toISO() }}"
+                    },
+                    "schema": [
+                        {
+                            "id": "order_no",
+                            "displayName": "order_no",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "channel",
+                            "displayName": "channel",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "status",
+                            "displayName": "status",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "customer_number",
+                            "displayName": "customer_number",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "fulfillment",
+                            "displayName": "fulfillment",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "items",
+                            "displayName": "items",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "string",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "product_total",
+                            "displayName": "product_total",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "number",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "total",
+                            "displayName": "total",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "number",
+                            "canBeUsedToMatch": true
+                        },
+                        {
+                            "id": "created_at",
+                            "displayName": "created_at",
+                            "required": false,
+                            "defaultMatch": false,
+                            "display": true,
+                            "type": "dateTime",
+                            "canBeUsedToMatch": true
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "8b67072f-3597-4650-a25d-81f01a601a89",
+            "name": "create_order",
+            "type": "n8n-nodes-base.dataTableTool",
+            "typeVersion": 1.1,
+            "position": [
+                1280,
+                528
+            ]
+        },
+        {
+            "id": "b7e2c1a4-1f3d-4c56-9a0b-2e5f7c9d1234",
+            "name": "send_payment_request",
+            "type": "n8n-nodes-base.httpRequestTool",
+            "typeVersion": 4.4,
+            "position": [
+                1440,
+                528
+            ],
+            "parameters": {
+                "toolDescription": "Call this ONCE after create_order succeeds for a PICKUP order, to hand the order to the payment flow (Member 3), which sends the customer a payment link. Provide order_no (from create_order), product_total (SAR number) and customer_number.",
+                "method": "POST",
+                "url": "http://localhost:5678/webhook/m3/checkout",
+                "sendBody": true,
+                "contentType": "json",
+                "specifyBody": "json",
+                "jsonBody": "={{ { \"order_no\": $fromAI(\"order_no\", \"the order number returned by create_order\"), \"product_total\": $fromAI(\"product_total\", \"product total in SAR\", \"number\"), \"courier_price\": 0, \"customer_number\": $fromAI(\"customer_number\", \"the customer WhatsApp number\") } }}",
+                "options": {}
+            }
+        }
+    ],
+    "connections": {
+        "WhatsApp Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Only Inbound Text",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Only Inbound Text": {
+            "main": [
+                [
+                    {
+                        "node": "Order Assistant",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Order Assistant": {
+            "main": [
+                [
+                    {
+                        "node": "Reply To Customer",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Gemini Model": {
+            "ai_languageModel": [
+                [
+                    {
+                        "node": "Order Assistant",
+                        "type": "ai_languageModel",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Customer Memory": {
+            "ai_memory": [
+                [
+                    {
+                        "node": "Order Assistant",
+                        "type": "ai_memory",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_menu": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "Order Assistant",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "get_my_orders": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "Order Assistant",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "create_order": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "Order Assistant",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "send_payment_request": {
+            "ai_tool": [
+                [
+                    {
+                        "node": "Order Assistant",
+                        "type": "ai_tool",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "availableInMCP": true,
+        "binaryMode": "separate"
+    },
+    "pinData": {},
+    "meta": {
+        "aiBuilderAssisted": true,
+        "builderVariant": "mcp"
+    }
+}

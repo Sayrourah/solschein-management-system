@@ -1,0 +1,678 @@
+{
+    "name": "Solschein \u00e2\u20ac\u201d Pricing & Payment (M3)",
+    "nodes": [
+        {
+            "id": "9fe44cca-9391-4631-ab5a-3434653dabc5",
+            "name": "Checkout Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                0,
+                0
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "m3/checkout",
+                "responseMode": "responseNode"
+            },
+            "webhookId": "e136a5d3-608b-486d-a5ba-4c8c2fa2cb3b"
+        },
+        {
+            "id": "cc3f1516-5b3c-4803-9afc-4e0c5f120d2b",
+            "name": "Compute Price",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                220,
+                0
+            ],
+            "parameters": {
+                "jsCode": "const b=$input.first().json;const d=b.body||b;const NL=String.fromCharCode(10);const TIERS=[{min:80,s:8},{min:60,s:6},{min:45,s:4},{min:30,s:2},{min:0,s:0}];function support(v){const t=TIERS.find(function(x){return v>=x.min;});return t?t.s:0;}const prod=Number(d.product_total||0);const courier=Number(d.courier_price||0);const cafe_support=support(prod);const delivery_price=Math.max(0,+(courier-cafe_support).toFixed(2));const total=+(prod+delivery_price).toFixed(2);const cur=cafe_support;const nxt=TIERS.slice().reverse().find(function(x){return x.s>cur&&x.min>prod;});let upsell='';if(nxt){const gap=+(nxt.min-prod).toFixed(2);upsell='Add just '+gap+' SAR of products to get a '+nxt.s+' SAR delivery discount instead of '+cur+' SAR. Try a cookie, brownie or extra shot.';}const est=(d.estimated_min!=null)?('Estimated time: '+d.estimated_min+' min'+NL):'';const summary='Order summary'+NL+'Product value: '+prod+' SAR'+NL+'Courier price: '+courier+' SAR'+NL+'Cafe delivery discount: '+cafe_support+' SAR'+NL+'Delivery after discount: '+delivery_price+' SAR'+NL+'Total: '+total+' SAR'+NL+est+(upsell?(upsell+NL):'')+'Reply YES to confirm and receive the payment link.';return [{json:{order_no:String(d.order_no||''),customer_number:String(d.customer_number||''),product_total:prod,courier_price:courier,cafe_support:cafe_support,delivery_price:delivery_price,total:total,status:'Awaiting price approval',summary:summary,upsell:upsell}}];"
+            }
+        },
+        {
+            "id": "fb02c4a6-e8a1-44bf-a786-6da558d8a66d",
+            "name": "Save Pricing",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                440,
+                0
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "update",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "hWfPbrXmGYFK3ZNW"
+                },
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "order_no",
+                            "keyValue": "={{ $('Compute Price').item.json.order_no }}"
+                        }
+                    ]
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "cafe_support": "={{ $('Compute Price').item.json.cafe_support }}",
+                        "delivery_price": "={{ $('Compute Price').item.json.delivery_price }}",
+                        "total": "={{ $('Compute Price').item.json.total }}",
+                        "status": "={{ $('Compute Price').item.json.status }}"
+                    }
+                },
+                "options": {}
+            }
+        },
+        {
+            "id": "94fa3e78-7ee2-4eef-9258-6a7a10d3ed57",
+            "name": "Send Price Summary",
+            "type": "n8n-nodes-base.whatsApp",
+            "typeVersion": 1.1,
+            "position": [
+                660,
+                0
+            ],
+            "parameters": {
+                "operation": "send",
+                "phoneNumberId": "<__PLACEHOLDER_VALUE__WhatsApp Business phone number ID__>",
+                "recipientPhoneNumber": "={{ $('Compute Price').item.json.customer_number }}",
+                "textBody": "={{ $('Compute Price').item.json.summary }}",
+                "additionalFields": {}
+            },
+            "webhookId": "732b44a3-a4c0-478f-9b2f-1da1c05e52b6"
+        },
+        {
+            "id": "ff9817f2-0a97-41fc-a7b6-6b10b5f07697",
+            "name": "Respond Checkout",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.5,
+            "position": [
+                880,
+                0
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ { \"status\": \"awaiting_approval\", \"order_no\": $('Compute Price').item.json.order_no } }}"
+            }
+        },
+        {
+            "id": "4085f8bb-2b75-4070-bcec-8dad7211bfe4",
+            "name": "Approve Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                0,
+                260
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "m3/approve",
+                "responseMode": "responseNode"
+            },
+            "webhookId": "b79464da-e189-4090-94c0-14d07eaa79c0"
+        },
+        {
+            "id": "343b4b84-439d-44ee-9072-6080b4592c10",
+            "name": "Read Order (Approve)",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                220,
+                260
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "hWfPbrXmGYFK3ZNW"
+                },
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "order_no",
+                            "keyValue": "={{ ($json.body||$json).order_no }}"
+                        }
+                    ]
+                },
+                "limit": 1
+            }
+        },
+        {
+            "id": "61382f93-65ce-42a5-ac3e-b6dcea017298",
+            "name": "Build Payment Request",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                440,
+                260
+            ],
+            "parameters": {
+                "jsCode": "const o=$input.first().json;const order_no=String(o.order_no||'');const total=Number(o.total||0);const customer=String(o.customer_number||'');const channel=String(o.channel||'whatsapp');const amount=Math.round(total*100);return [{json:{order_no:order_no,customer_number:customer,body:{amount:amount,currency:'SAR',description:'Solschein order '+order_no,callback_url:'http://localhost:5678/webhook/m3/payment-callback',metadata:{order_no:order_no,channel:channel}}}}];"
+            }
+        },
+        {
+            "id": "29fe82a2-3779-40a9-882c-e29712113bdc",
+            "name": "Create Payment Link",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.4,
+            "position": [
+                660,
+                260
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "https://api.moyasar.com/v1/payments",
+                "authentication": "genericCredentialType",
+                "genericAuthType": "httpBearerAuth",
+                "sendBody": true,
+                "contentType": "json",
+                "specifyBody": "json",
+                "jsonBody": "={{ $json.body }}",
+                "options": {}
+            }
+        },
+        {
+            "id": "f0369635-9d2d-4e08-a64a-b677aa33f38e",
+            "name": "Set Awaiting Payment",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                880,
+                260
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "update",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "hWfPbrXmGYFK3ZNW"
+                },
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "order_no",
+                            "keyValue": "={{ $('Build Payment Request').item.json.order_no }}"
+                        }
+                    ]
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "status": "Awaiting payment"
+                    }
+                },
+                "options": {}
+            }
+        },
+        {
+            "id": "de423aa8-fe0b-4e0a-8941-7469667cab7d",
+            "name": "Send Payment Link",
+            "type": "n8n-nodes-base.whatsApp",
+            "typeVersion": 1.1,
+            "position": [
+                1100,
+                260
+            ],
+            "parameters": {
+                "operation": "send",
+                "phoneNumberId": "<__PLACEHOLDER_VALUE__WhatsApp Business phone number ID__>",
+                "recipientPhoneNumber": "={{ $('Build Payment Request').item.json.customer_number }}",
+                "textBody": "={{ \"Pay for your order here: \" + ($('Create Payment Link').item.json.source?.transaction_url ?? $('Create Payment Link').item.json.url ?? \"(link)\") }}",
+                "additionalFields": {}
+            },
+            "webhookId": "6b27bbc4-2cba-4494-b2b5-de7296d3f751"
+        },
+        {
+            "id": "e25681ac-f2cf-4bf0-99b1-d62d8ddb4441",
+            "name": "Respond Approve",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.5,
+            "position": [
+                1320,
+                260
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ { \"status\": \"payment_link_sent\" } }}"
+            }
+        },
+        {
+            "id": "c3cf493c-7072-44f4-972c-3990db35853b",
+            "name": "Payment Callback Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                0,
+                560
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "m3/payment-callback",
+                "responseMode": "responseNode"
+            },
+            "webhookId": "ee3d2aa4-815a-4917-99e3-d46ce620b455"
+        },
+        {
+            "id": "c465307d-d7ab-43b0-af41-dd542cffcdab",
+            "name": "Payment Result",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                220,
+                560
+            ],
+            "parameters": {
+                "jsCode": "const b=$input.first().json;const d=b.body||b;const data=d.data||d;const status=data.status;const meta=data.metadata||{};return [{json:{paid:status==='paid',order_no:String(meta.order_no||''),status:String(status||'')}}];"
+            }
+        },
+        {
+            "id": "ce526249-c083-4381-9db8-8ecd1e892dec",
+            "name": "Read Order (Callback)",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                440,
+                560
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "hWfPbrXmGYFK3ZNW"
+                },
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "order_no",
+                            "keyValue": "={{ $('Payment Result').item.json.order_no }}"
+                        }
+                    ]
+                },
+                "limit": 1
+            }
+        },
+        {
+            "id": "bdf99942-c8b4-4610-8938-e00dec779df3",
+            "name": "Paid?",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2.2,
+            "position": [
+                660,
+                560
+            ],
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "loose",
+                        "version": 1
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $('Payment Result').item.json.paid }}",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                }
+            }
+        },
+        {
+            "id": "cccf38c2-c4c3-4fd9-8f42-960bc2ad58a4",
+            "name": "Mark Paid",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                880,
+                460
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "update",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "hWfPbrXmGYFK3ZNW"
+                },
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "order_no",
+                            "keyValue": "={{ $('Payment Result').item.json.order_no }}"
+                        }
+                    ]
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "status": "Paid"
+                    }
+                },
+                "options": {}
+            }
+        },
+        {
+            "id": "cb1de19c-6f7b-4ec7-a371-d1af02aae711",
+            "name": "Build Paid Event",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1100,
+                460
+            ],
+            "parameters": {
+                "jsCode": "const o=$('Read Order (Callback)').first().json;return [{json:{type:'paid',order_no:String(o.order_no||''),channel:String(o.channel||''),customer_number:String(o.customer_number||''),courier_number:String(o.courier_number||''),delivery_price:Number(o.delivery_price||0),fulfillment:String(o.fulfillment||''),items:o.items||'[]'}}];"
+            }
+        },
+        {
+            "id": "73512ed7-6aac-4a93-b8d8-729af24cdc12",
+            "name": "Signal M2 + M4 (paid)",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.4,
+            "position": [
+                1320,
+                460
+            ],
+            "parameters": {
+                "method": "POST",
+                "url": "http://localhost:5678/webhook/internal/order-paid",
+                "sendBody": true,
+                "contentType": "json",
+                "specifyBody": "json",
+                "jsonBody": "={{ $json }}",
+                "options": {}
+            },
+            "onError": "continueRegularOutput"
+        },
+        {
+            "id": "2f8a4afc-0aad-4201-bee8-98e579e7cf8f",
+            "name": "Respond Paid",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.5,
+            "position": [
+                1540,
+                460
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ { \"status\": \"paid\" } }}"
+            }
+        },
+        {
+            "id": "bba1dcb8-d0cf-4d59-b8fe-921fd1f1bb7d",
+            "name": "Send Payment Failed",
+            "type": "n8n-nodes-base.whatsApp",
+            "typeVersion": 1.1,
+            "position": [
+                880,
+                680
+            ],
+            "parameters": {
+                "operation": "send",
+                "phoneNumberId": "<__PLACEHOLDER_VALUE__WhatsApp Business phone number ID__>",
+                "recipientPhoneNumber": "={{ $('Read Order (Callback)').item.json.customer_number }}",
+                "textBody": "Your payment did not go through, so we have not started preparing your order. Reply RETRY for a new link or STAFF to talk to us.",
+                "additionalFields": {}
+            },
+            "webhookId": "c3c818bc-c39e-4d2d-8842-0d27f3ad24ff"
+        },
+        {
+            "id": "b3429ed3-87d6-4863-9dae-b7fcde172ba0",
+            "name": "Respond Failed",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1.5,
+            "position": [
+                1100,
+                680
+            ],
+            "parameters": {
+                "respondWith": "json",
+                "responseBody": "={{ { \"status\": \"failed\" } }}"
+            }
+        },
+        {
+            "id": "17e41e82-78c2-43b9-8c18-57e3c4719d90",
+            "name": "Sticky Note 44f3a69f",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                100,
+                300
+            ],
+            "parameters": {
+                "content": "## Integration seams (v1, inactive)\nGo-live needs: (1) a Meta WhatsApp credential on the three Send nodes + phoneNumberId; (2) a real payment gateway credential on Create Payment Link (Moyasar shown) and the callback_url host in Build Payment Request; (3) the internal order-paid event URL wired to Member 2 (courier fan-out) + Member 4 (inventory deduct). Approve Webhook is hit by Member 1 when the customer replies YES. Determinism lives in n8n-tasks/member3_pricing.js.",
+                "color": 4
+            }
+        }
+    ],
+    "connections": {
+        "Checkout Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Compute Price",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Compute Price": {
+            "main": [
+                [
+                    {
+                        "node": "Save Pricing",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Save Pricing": {
+            "main": [
+                [
+                    {
+                        "node": "Send Price Summary",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send Price Summary": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Checkout",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Approve Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Read Order (Approve)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Order (Approve)": {
+            "main": [
+                [
+                    {
+                        "node": "Build Payment Request",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Payment Request": {
+            "main": [
+                [
+                    {
+                        "node": "Create Payment Link",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Create Payment Link": {
+            "main": [
+                [
+                    {
+                        "node": "Set Awaiting Payment",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Set Awaiting Payment": {
+            "main": [
+                [
+                    {
+                        "node": "Send Payment Link",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send Payment Link": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Approve",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Payment Callback Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Payment Result",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Payment Result": {
+            "main": [
+                [
+                    {
+                        "node": "Read Order (Callback)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Order (Callback)": {
+            "main": [
+                [
+                    {
+                        "node": "Paid?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Paid?": {
+            "main": [
+                [
+                    {
+                        "node": "Mark Paid",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Send Payment Failed",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Mark Paid": {
+            "main": [
+                [
+                    {
+                        "node": "Build Paid Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Build Paid Event": {
+            "main": [
+                [
+                    {
+                        "node": "Signal M2 + M4 (paid)",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Signal M2 + M4 (paid)": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Paid",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Send Payment Failed": {
+            "main": [
+                [
+                    {
+                        "node": "Respond Failed",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "availableInMCP": true
+    },
+    "pinData": null,
+    "meta": {
+        "aiBuilderAssisted": true,
+        "builderVariant": "mcp"
+    }
+}

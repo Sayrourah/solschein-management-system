@@ -1,0 +1,326 @@
+{
+    "name": "Solschein \u00e2\u20ac\u201d Order Events / Inventory (M4)",
+    "nodes": [
+        {
+            "id": "031fe109-045d-40c5-8107-8482505b50df",
+            "name": "Order Paid Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                0,
+                0
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "internal/order-paid"
+            },
+            "webhookId": "b40dfa8d-0b76-4e27-bde0-d603ff22d31b"
+        },
+        {
+            "id": "0fd84385-d532-4d26-aced-73db5f54c2ed",
+            "name": "Normalize Event",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                240,
+                110
+            ],
+            "parameters": {
+                "jsCode": "const b=$input.first().json;const d=b.body||b;return [{json:{order_no:String(d.order_no||''),channel:String(d.channel||''),type:String(d.type||''),items:d.items!=null?d.items:'[]'}}];"
+            }
+        },
+        {
+            "id": "8789e5b0-c456-46b6-b606-87b5ca13cc09",
+            "name": "Order Received Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 2.1,
+            "position": [
+                0,
+                220
+            ],
+            "parameters": {
+                "httpMethod": "POST",
+                "path": "internal/order-received"
+            },
+            "webhookId": "8dfb3f26-b608-4be1-83a1-1d3864df567e"
+        },
+        {
+            "id": "855a95f8-cbcd-416c-b980-915f4d2cf831",
+            "name": "Read Products",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                460,
+                110
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "bgJbtTjZ6oGjWJNB"
+                },
+                "returnAll": true
+            }
+        },
+        {
+            "id": "05237887-92b3-4a88-b528-f5e5b5695d30",
+            "name": "Read Inventory",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                680,
+                110
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "oSXZXOU4SvH6f5OS"
+                },
+                "returnAll": true
+            },
+            "executeOnce": true
+        },
+        {
+            "id": "a2359546-fcf5-4036-b609-37a16862be0a",
+            "name": "Compute Deductions",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                900,
+                110
+            ],
+            "parameters": {
+                "jsCode": "const ev=$('Normalize Event').first().json;let items=ev.items;if(typeof items==='string'){try{items=JSON.parse(items||'[]');}catch(e){items=[];}}const products=$('Read Products').all().map(function(i){return i.json;});const inventory=$input.all().map(function(i){return i.json;});const bySku={};products.forEach(function(p){bySku[p.sku]=p;});const byName={};inventory.forEach(function(v){byName[v.name]=v;});const deductions={};function addRecipe(sku,qty){const p=bySku[sku];if(!p||!p.recipe)return;let rec=p.recipe;if(typeof rec==='string'){try{rec=JSON.parse(rec||'[]');}catch(e){rec=[];}}rec.forEach(function(r){deductions[r.item]=(deductions[r.item]||0)+Number(r.qty||0)*qty;});}items.forEach(function(line){const q=Number(line.qty||1);addRecipe(line.sku,q);(line.addons||[]).forEach(function(a){addRecipe(a,q);});});const out=[];Object.keys(deductions).forEach(function(item){const inv=byName[item];if(!inv)return;const newStock=Number(inv.qty_in_stock||0)-deductions[item];out.push({json:{target:'inventory',name:item,qty_in_stock:newStock}});if(newStock<=0){products.forEach(function(p){if(p.is_addon)return;let rec=p.recipe;if(typeof rec==='string'){try{rec=JSON.parse(rec||'[]');}catch(e){rec=[];}}if((rec||[]).some(function(r){return r.item===item;})){out.push({json:{target:'product',sku:p.sku,available:false}});}});}});return out;"
+            }
+        },
+        {
+            "id": "8d58cc54-8e8a-44df-942a-78144bc638a7",
+            "name": "Route Update",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3.2,
+            "position": [
+                1120,
+                110
+            ],
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "outputKey": "inventory",
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.target }}",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        },
+                                        "rightValue": "inventory"
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        },
+                        {
+                            "outputKey": "product",
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.target }}",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        },
+                                        "rightValue": "product"
+                                    }
+                                ],
+                                "combinator": "and"
+                            }
+                        }
+                    ]
+                },
+                "options": {}
+            }
+        },
+        {
+            "id": "995c1514-26d8-4217-a6fa-db2d10b8cd9b",
+            "name": "Update Inventory",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                1360,
+                0
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "update",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "oSXZXOU4SvH6f5OS"
+                },
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "name",
+                            "keyValue": "={{ $json.name }}"
+                        }
+                    ]
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "qty_in_stock": "={{ $json.qty_in_stock }}"
+                    }
+                },
+                "options": {}
+            }
+        },
+        {
+            "id": "cdac517f-9237-4dc2-b37b-2264409733ae",
+            "name": "Disable Product",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                1360,
+                220
+            ],
+            "parameters": {
+                "resource": "row",
+                "operation": "update",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "bgJbtTjZ6oGjWJNB"
+                },
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "sku",
+                            "keyValue": "={{ $json.sku }}"
+                        }
+                    ]
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "available": "={{ $json.available }}"
+                    }
+                },
+                "options": {}
+            }
+        }
+    ],
+    "connections": {
+        "Order Paid Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Normalize Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Normalize Event": {
+            "main": [
+                [
+                    {
+                        "node": "Read Products",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Order Received Webhook": {
+            "main": [
+                [
+                    {
+                        "node": "Normalize Event",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Products": {
+            "main": [
+                [
+                    {
+                        "node": "Read Inventory",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Inventory": {
+            "main": [
+                [
+                    {
+                        "node": "Compute Deductions",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Compute Deductions": {
+            "main": [
+                [
+                    {
+                        "node": "Route Update",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route Update": {
+            "main": [
+                [
+                    {
+                        "node": "Update Inventory",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Disable Product",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "availableInMCP": true
+    },
+    "pinData": null,
+    "meta": {
+        "aiBuilderAssisted": true,
+        "builderVariant": "mcp"
+    }
+}

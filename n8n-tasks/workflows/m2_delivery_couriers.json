@@ -1,0 +1,619 @@
+{
+    "name": "Solschein \u00e2\u20ac\u201d Delivery & Couriers (M2)",
+    "nodes": [
+        {
+            "parameters": {
+                "updates": [
+                    "messages"
+                ],
+                "options": {}
+            },
+            "id": "57f384e9-d525-4424-95cd-0d7daa386c99",
+            "name": "WhatsApp Trigger",
+            "type": "n8n-nodes-base.whatsAppTrigger",
+            "typeVersion": 1,
+            "position": [
+                0,
+                400
+            ],
+            "webhookId": "57b4e257-2d49-4f04-8b18-5c62ef2e6522"
+        },
+        {
+            "parameters": {
+                "jsCode": "const raw=$input.first().json;const value=raw.messages?raw:((raw.body&&raw.body.entry&&raw.body.entry[0]&&raw.body.entry[0].changes&&raw.body.entry[0].changes[0]&&raw.body.entry[0].changes[0].value)||raw.value||raw);const msg=(value.messages&&value.messages[0])||raw.message||{};const from=msg.from||value.from||raw.from||'';const text=(msg.text&&msg.text.body)||raw.text||'';const loc=msg.location||raw.location||null;function parseCommand(t){t=String(t).trim().toLowerCase();let m;if((m=t.match(/^arrived[ ]+([0-9]+)/)))return{cmd:'arrived',orderNo:m[1]};if((m=t.match(/^picked[ ]*up[ ]+([0-9]+)/)))return{cmd:'picked up',orderNo:m[1]};if((m=t.match(/^near[ ]+([0-9]+)/)))return{cmd:'near',orderNo:m[1]};if((m=t.match(/^deliver[ ]+([0-9]+)[ ]+([0-9]{4})/)))return{cmd:'deliver',orderNo:m[1],code:m[2]};return null;}function parseBid(t){t=String(t);const p=t.match(/([0-9]+(?:[.][0-9]+)?)[ ]*sar/i)||t.match(/([0-9]+(?:[.][0-9]+)?)/);const e=t.match(/([0-9]+)[ ]*min/i);if(!p)return null;return{price:+p[1],etaMin:e?+e[1]:null};}const command=parseCommand(text);const bid=command?null:parseBid(text);let route='other';if(loc)route='location';else if(command)route='command';else if(bid)route='bid';return [{json:{from:from,text:text,hasLocation:!!loc,lat:loc?Number(loc.latitude):null,lng:loc?Number(loc.longitude):null,route:route,command:command,bid:bid}}];"
+            },
+            "id": "4f4aee00-a328-49c4-9d05-0f7c02d67296",
+            "name": "Classify Inbound",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                224,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "rules": {
+                    "values": [
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.route }}",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        },
+                                        "rightValue": "location"
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "renameOutput": true,
+                            "outputKey": "location"
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.route }}",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        },
+                                        "rightValue": "command"
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "renameOutput": true,
+                            "outputKey": "command"
+                        },
+                        {
+                            "conditions": {
+                                "options": {
+                                    "caseSensitive": true,
+                                    "leftValue": "",
+                                    "typeValidation": "strict",
+                                    "version": 1
+                                },
+                                "conditions": [
+                                    {
+                                        "leftValue": "={{ $json.route }}",
+                                        "operator": {
+                                            "type": "string",
+                                            "operation": "equals"
+                                        },
+                                        "rightValue": "bid"
+                                    }
+                                ],
+                                "combinator": "and"
+                            },
+                            "renameOutput": true,
+                            "outputKey": "bid"
+                        }
+                    ]
+                },
+                "options": {}
+            },
+            "id": "73d631a2-9e5b-43dc-98a7-d8f06990a981",
+            "name": "Route Inbound",
+            "type": "n8n-nodes-base.switch",
+            "typeVersion": 3.4,
+            "position": [
+                448,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "zdaBo4Uw6U6dSS15"
+                },
+                "returnAll": true
+            },
+            "id": "8e300f53-a405-4372-8859-599eafe9f05a",
+            "name": "Read Couriers",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                672,
+                112
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const NL=String.fromCharCode(10);const CAFE={lat:24.7136,lon:46.6753};function hav(a,b){const R=6371,r=function(d){return d*Math.PI/180;};const dLat=r(b.lat-a.lat),dLon=r(b.lon-a.lon);const s=Math.pow(Math.sin(dLat/2),2)+Math.cos(r(a.lat))*Math.cos(r(b.lat))*Math.pow(Math.sin(dLon/2),2);return R*2*Math.atan2(Math.sqrt(s),Math.sqrt(1-s));}function estimate(km){const low=Math.round(6+2.8*km);return{distanceKm:+km.toFixed(2),low:low,high:low+5,minutes:10+Math.round(km/0.5)};}function pick(cs,nb,n){const serves=function(c){return String(c.neighborhoods||'').toLowerCase().split(',').map(function(s){return s.trim();}).indexOf(String(nb||'').toLowerCase())>=0;};const rank=function(a,b){return (b.rating||0)-(a.rating||0)||(a.cancellations||0)-(b.cancellations||0)||(b.completed_orders||0)-(a.completed_orders||0);};const local=cs.filter(serves).sort(rank);const rest=cs.filter(function(c){return !serves(c);}).sort(rank);return local.concat(rest).slice(0,n);}const info=$('Classify Inbound').first().json;const couriers=$input.all().map(function(i){return i.json;});const est=estimate(hav(CAFE,{lat:info.lat,lon:info.lng}));const chosen=pick(couriers,'',5);const requestNo=String(Date.now()).slice(-4);const sd=$getWorkflowStaticData('global');sd.pendingBids=sd.pendingBids||{};sd.pendingBids[info.from]={requestNo:requestNo,distanceKm:est.distanceKm,couriers:chosen.map(function(c){return c.number;}),offers:[],startedAt:Date.now(),customer:info.from};const out=[];out.push({json:{to:info.from,body:'Delivery estimate: '+est.low+' to '+est.high+' SAR, about '+est.minutes+' min. Finding you the best courier...'}});chosen.forEach(function(c){out.push({json:{to:c.number,body:'Solschein delivery request #'+requestNo+NL+'Pickup: Cafe Solschein'+NL+'Drop-off: ~'+est.distanceKm+' km away'+NL+'Ready in: 12 min'+NL+'Reply with price + arrival time (e.g. 15 SAR, arrive in 10 min).'}});});return out;"
+            },
+            "id": "5606e419-237f-4ec8-aa47-917cc7645558",
+            "name": "Estimate & Fan-Out Bids",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                880,
+                112
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "send",
+                "phoneNumberId": "<__PLACEHOLDER_VALUE__WhatsApp Business phone number ID__>",
+                "recipientPhoneNumber": "={{ $json.to }}",
+                "textBody": "={{ $json.body }}",
+                "additionalFields": {}
+            },
+            "id": "d71c9bf7-d5c7-4c5e-b560-dcba19286c6f",
+            "name": "Send Location Messages",
+            "type": "n8n-nodes-base.whatsApp",
+            "typeVersion": 1.1,
+            "position": [
+                1104,
+                112
+            ],
+            "webhookId": "1747cc03-d32b-4832-80c9-56a28b218f17"
+        },
+        {
+            "parameters": {
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "hWfPbrXmGYFK3ZNW"
+                },
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "order_no",
+                            "keyValue": "={{ $json.command.orderNo }}"
+                        }
+                    ]
+                },
+                "limit": 1
+            },
+            "id": "ba6a8b17-5136-46a4-a262-ccc2c818ca8a",
+            "name": "Read Order",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                672,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const info=$('Classify Inbound').first().json;const cmd=info.command;const order=$input.first()?$input.first().json:null;const from=info.from;const MAP={arrived:'Courier arrived','picked up':'Picked up',near:'Courier near',deliver:'Delivered'};let valid=true,status=MAP[cmd.cmd]||null;if(cmd.cmd==='deliver'){valid=!!(order&&String(order.delivery_code)===String(cmd.code).trim());if(!valid)status='Problem';}const customer=order?order.customer_number:null;const messages=[];if(cmd.cmd==='arrived'){messages.push({to:from,body:'Got it - arrived at the cafe for order '+cmd.orderNo+'.'});}if(cmd.cmd==='picked up'){messages.push({to:from,body:'Order '+cmd.orderNo+' picked up. Deliver to the saved address. Send near '+cmd.orderNo+' when close.'});if(customer)messages.push({to:customer,body:'Your order '+cmd.orderNo+' is on the way!'});}if(cmd.cmd==='near'){if(customer){messages.push({to:from,body:'Customer contact: '+customer+'. Final delivery instructions apply.'});messages.push({to:customer,body:'Your courier is nearby for order '+cmd.orderNo+'. Please have your 4-digit code ready.'});}}if(cmd.cmd==='deliver'){if(valid&&customer){messages.push({to:customer,body:'Order '+cmd.orderNo+' delivered. Thank you! Reply 1-5 to rate.'});messages.push({to:from,body:'Delivery confirmed for '+cmd.orderNo+'. Thank you!'});}else{messages.push({to:from,body:'Code mismatch for order '+cmd.orderNo+'. Re-check the 4-digit code with the customer.'});}}return [{json:{order_no:cmd.orderNo,status:status,valid:valid,deliver:cmd.cmd==='deliver',courier_number:(order&&order.courier_number)||from,customer:customer,messages:messages}}];"
+            },
+            "id": "10f64f1b-41d2-44fb-80e5-1e1bbeaf8ad6",
+            "name": "Apply Command",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                880,
+                400
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "function score(o,s){s=s||{};const price=(o.price==null?999:o.price),eta=(o.etaMin==null?30:o.etaMin),rating=(s.rating==null?3:s.rating),cancels=(s.cancellations||0);return price*1.0+eta*0.5+(5-rating)*2.0+cancels*3.0;}function choose(offers,st){st=st||{};if(!offers.length)return{winner:null,losers:[]};const sc=offers.map(function(o){return Object.assign({},o,{score:+score(o,st[o.courier_number]).toFixed(2)});}).sort(function(a,b){return a.score-b.score;});return{winner:sc[0],losers:sc.slice(1)};}const info=$('Classify Inbound').first().json;const courierNo=info.from;const bid=info.bid;const sd=$getWorkflowStaticData('global');sd.pendingBids=sd.pendingBids||{};const key=Object.keys(sd.pendingBids).find(function(k){return (sd.pendingBids[k].couriers||[]).indexOf(courierNo)>=0;});if(!key)return [];const req=sd.pendingBids[key];req.offers=req.offers||[];if(!req.offers.some(function(o){return o.courier_number===courierNo;}))req.offers.push({courier_number:courierNo,price:bid.price,etaMin:bid.etaMin});const elapsed=(Date.now()-(req.startedAt||0))>=120000;const allIn=req.offers.length>=(req.couriers||[]).length;if(!(elapsed||allIn))return [];const res=choose(req.offers,{});const winner=res.winner,losers=res.losers;const code=String(Math.floor(1000+Math.random()*9000));delete sd.pendingBids[key];const out=[];if(winner){out.push({json:{to:winner.courier_number,body:'Request #'+req.requestNo+' confirmed. Pickup: Cafe Solschein. Ready in 12 min. On arrival send: arrived '+req.requestNo}});losers.forEach(function(l){out.push({json:{to:l.courier_number,body:'Request #'+req.requestNo+' was assigned to another courier. Thank you.'}});});out.push({json:{to:req.customer,body:'Courier found! Delivery '+winner.price+' SAR (final price set at checkout). Your delivery code is '+code+' - give it to the courier on arrival.'}});}return out;"
+            },
+            "id": "47286410-9208-4f96-960b-8cf400fab4a8",
+            "name": "Collect & Score Bids",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                672,
+                864
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "send",
+                "phoneNumberId": "<__PLACEHOLDER_VALUE__WhatsApp Business phone number ID__>",
+                "recipientPhoneNumber": "={{ $json.to }}",
+                "textBody": "={{ $json.body }}",
+                "additionalFields": {}
+            },
+            "id": "5e09d020-6185-4e39-aedd-ae22c12e86f6",
+            "name": "Send Bid Outcome",
+            "type": "n8n-nodes-base.whatsApp",
+            "typeVersion": 1.1,
+            "position": [
+                880,
+                864
+            ],
+            "webhookId": "665e3439-7e52-4883-8928-b9390c940649"
+        },
+        {
+            "parameters": {
+                "operation": "update",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "hWfPbrXmGYFK3ZNW"
+                },
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "order_no",
+                            "keyValue": "={{ $json.order_no }}"
+                        }
+                    ]
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "status": "={{ $json.status }}"
+                    }
+                },
+                "options": {}
+            },
+            "id": "1803ad43-f373-45c0-88ef-5d73f1228fd5",
+            "name": "Update Order Status",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                1104,
+                304
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const list=($('Apply Command').first().json.messages)||[];return list.map(function(m){return {json:m};});"
+            },
+            "id": "30c65a82-c768-48c6-808a-94b90e435396",
+            "name": "Expand Notifications",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1104,
+                512
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "send",
+                "phoneNumberId": "<__PLACEHOLDER_VALUE__WhatsApp Business phone number ID__>",
+                "recipientPhoneNumber": "={{ $json.to }}",
+                "textBody": "={{ $json.body }}",
+                "additionalFields": {}
+            },
+            "id": "6be166c4-b3ed-40ae-99cc-eba2e4bdd1cb",
+            "name": "Send Command Notifications",
+            "type": "n8n-nodes-base.whatsApp",
+            "typeVersion": 1.1,
+            "position": [
+                1328,
+                512
+            ],
+            "webhookId": "a9bc2287-c7c0-42fa-9958-1c2c1c34c22f"
+        },
+        {
+            "parameters": {
+                "conditions": {
+                    "options": {
+                        "caseSensitive": true,
+                        "leftValue": "",
+                        "typeValidation": "loose",
+                        "version": 1
+                    },
+                    "conditions": [
+                        {
+                            "leftValue": "={{ $json.deliver }}",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        },
+                        {
+                            "leftValue": "={{ $json.valid }}",
+                            "operator": {
+                                "type": "boolean",
+                                "operation": "true",
+                                "singleValue": true
+                            }
+                        }
+                    ],
+                    "combinator": "and"
+                },
+                "options": {}
+            },
+            "id": "dfb06d08-7210-4f8a-8c37-4fa9d167154a",
+            "name": "Delivered OK?",
+            "type": "n8n-nodes-base.filter",
+            "typeVersion": 2.3,
+            "position": [
+                1104,
+                704
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "get",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "zdaBo4Uw6U6dSS15"
+                },
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "number",
+                            "keyValue": "={{ $json.courier_number }}"
+                        }
+                    ]
+                },
+                "limit": 1
+            },
+            "id": "b271084b-7249-4bbb-be1b-9dd8f90803cd",
+            "name": "Read Courier",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                1328,
+                704
+            ]
+        },
+        {
+            "parameters": {
+                "jsCode": "const c=$input.first().json;const n=(c.completed_orders||0)+1;return [{json:{number:c.number,completed_orders:n}}];"
+            },
+            "id": "3f28cc35-b51d-4d0a-affe-7afb474ac757",
+            "name": "Bump Courier Stats",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [
+                1552,
+                704
+            ]
+        },
+        {
+            "parameters": {
+                "operation": "update",
+                "dataTableId": {
+                    "__rl": true,
+                    "mode": "id",
+                    "value": "zdaBo4Uw6U6dSS15"
+                },
+                "filters": {
+                    "conditions": [
+                        {
+                            "keyName": "number",
+                            "keyValue": "={{ $json.number }}"
+                        }
+                    ]
+                },
+                "columns": {
+                    "mappingMode": "defineBelow",
+                    "value": {
+                        "completed_orders": "={{ $json.completed_orders }}"
+                    }
+                },
+                "options": {}
+            },
+            "id": "63102a52-10ef-4018-8dc8-c518c7629ec2",
+            "name": "Update Courier",
+            "type": "n8n-nodes-base.dataTable",
+            "typeVersion": 1.1,
+            "position": [
+                1760,
+                704
+            ]
+        },
+        {
+            "parameters": {
+                "content": "## M2 integration seams (v1)\nBid confirmation fan-out here fires on bid-close for a self-contained demo. At go-live it should fire on Member 3 PAID event, use the real order_no, apply M3 customer price (courier price minus cafe support), and write courier_number/courier_price/delivery_code onto the orders row. Neighborhood ranking needs a geocoding API (open dependency).",
+                "height": 650,
+                "width": 520,
+                "color": 3
+            },
+            "id": "830fbd8b-d051-422d-90ee-17e3d4f827fc",
+            "name": "Sticky Note b01d9d99",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                -688,
+                0
+            ]
+        },
+        {
+            "parameters": {
+                "content": "## Go-live (inactive until then)\nAttach a Meta WhatsApp credential to the Trigger plus all three Send nodes, set phoneNumberId, then activate so n8n verifies the Meta webhook. Couriers and customers hit the SAME WhatsApp number - this workflow and M1 both need one trigger; merge routing or give couriers a separate ops number.",
+                "height": 200,
+                "width": 520,
+                "color": 4
+            },
+            "id": "6a936272-b8aa-4a42-aa7e-363dda9a3351",
+            "name": "Sticky Note 09d91fb7",
+            "type": "n8n-nodes-base.stickyNote",
+            "typeVersion": 1,
+            "position": [
+                -144,
+                16
+            ]
+        }
+    ],
+    "connections": {
+        "WhatsApp Trigger": {
+            "main": [
+                [
+                    {
+                        "node": "Classify Inbound",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Classify Inbound": {
+            "main": [
+                [
+                    {
+                        "node": "Route Inbound",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Route Inbound": {
+            "main": [
+                [
+                    {
+                        "node": "Read Couriers",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Read Order",
+                        "type": "main",
+                        "index": 0
+                    }
+                ],
+                [
+                    {
+                        "node": "Collect & Score Bids",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Couriers": {
+            "main": [
+                [
+                    {
+                        "node": "Estimate & Fan-Out Bids",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Estimate & Fan-Out Bids": {
+            "main": [
+                [
+                    {
+                        "node": "Send Location Messages",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Order": {
+            "main": [
+                [
+                    {
+                        "node": "Apply Command",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Apply Command": {
+            "main": [
+                [
+                    {
+                        "node": "Update Order Status",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Expand Notifications",
+                        "type": "main",
+                        "index": 0
+                    },
+                    {
+                        "node": "Delivered OK?",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Collect & Score Bids": {
+            "main": [
+                [
+                    {
+                        "node": "Send Bid Outcome",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Expand Notifications": {
+            "main": [
+                [
+                    {
+                        "node": "Send Command Notifications",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Delivered OK?": {
+            "main": [
+                [
+                    {
+                        "node": "Read Courier",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Read Courier": {
+            "main": [
+                [
+                    {
+                        "node": "Bump Courier Stats",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        },
+        "Bump Courier Stats": {
+            "main": [
+                [
+                    {
+                        "node": "Update Courier",
+                        "type": "main",
+                        "index": 0
+                    }
+                ]
+            ]
+        }
+    },
+    "settings": {
+        "executionOrder": "v1",
+        "availableInMCP": true,
+        "binaryMode": "separate"
+    },
+    "pinData": {},
+    "meta": {
+        "aiBuilderAssisted": true,
+        "builderVariant": "mcp"
+    }
+}
