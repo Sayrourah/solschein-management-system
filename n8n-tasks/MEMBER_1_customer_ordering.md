@@ -121,6 +121,9 @@ The JS reference files remain the deterministic spec for the cart contract + a f
 agent path is ever replaced:
 - [member1_cart.js](member1_cart.js) — cart/session, totals, order-row build, reorder. Check passes.
 - [member1_menu.js](member1_menu.js) — menu grouping, availability, main-menu router. Check passes.
+- [member1_pickup.js](member1_pickup.js) — ready→"I'm here"→owner-notify tail of 1.5
+  (bilingual "وصلت"/"I'm here" detection, `paid→ready→here` guards, `customer_arrived` event on
+  the M4 internal bus — no new `orders` column). Check passes.
 
 ### Handoffs / open items
 
@@ -130,5 +133,7 @@ agent path is ever replaced:
   `WhatsApp Trigger` + `Reply To Customer`, set the send node's **phone number ID** (placeholder),
   then activate so n8n registers + verifies the Meta webhook. Then "ready for pickup" push and the
   "I'm here" notify (status-change triggered) are a small follow-up flow.
-- **Deferred (`ponytail:`):** "Offers" menu section until M3 seeds discount products; the ready/here
-  outbound-notify flow.
+- **Ready/"I'm here" logic:** now specified + `node`-checked in [member1_pickup.js](member1_pickup.js).
+  The remaining work is wiring it as a status-change-triggered outbound flow (fires on M4 order
+  `status → Ready`), which is WhatsApp-credential-gated like the rest of M1.
+- **Deferred (`ponytail:`):** "Offers" menu section until M3 seeds discount products.
