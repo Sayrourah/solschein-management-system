@@ -25,6 +25,7 @@ Reduced set for HungerStation: New, Preparing, Ready, Delivered, Cancelled.
 ### 4.4 Inventory
 - Items: ingredients (matcha, beans, milk, syrups, ice) + consumables (cups, lids, sleeves, straws, napkins, bags). Each: name, unit (g/ml/pieces), qty in stock, low-stock threshold.
 - Recipes (BOM): per product, items consumed per unit. Add-ons have own small recipes, deducted on top.
+- Packaging bags are deducted once per order: `bags = ceil(total cup-equivalents / 2)`. One cup-equivalent consumes bag capacity; external ice counts as one cup-equivalent. Examples: 1 cup -> 1 bag, 3 cups -> 2 bags.
 - Deduct on paid (WhatsApp) / received (HungerStation): recipe qty × ordered qty, subtract from stock.
 - Restock via purchase receipt (same entry feeds cost).
 - Low-stock warning; at zero → auto-disable every product needing it (reuse "Product Unavailable"), until restocked.
@@ -70,6 +71,7 @@ Storage = **n8n Data Tables** (native; no external DB). Project `JET1jtVaCxN3vMT
 
 - **channel**: `whatsapp` \| `hungerstation`. **status**: the spec status strings (16 for WhatsApp, 5-subset for HungerStation).
 - Add-ons are `products` rows with `is_addon=true` and their own recipe.
+- Bags are inventory rows with unit `pieces`; the inventory-deduct logic derives bag usage from order-level cup-equivalents instead of storing bag as a per-product fixed recipe line.
 - Seeded: 6 inventory rows + Iced Matcha Latte (validates schema + cost example).
 
 **Logic delivered (drop bodies into Code nodes):**

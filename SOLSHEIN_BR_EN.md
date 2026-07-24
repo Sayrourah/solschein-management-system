@@ -515,12 +515,28 @@ Each menu product has a recipe: the inventory items it consumes per unit, and ho
 
 Add-ons (extra matcha shot, extra syrup, etc.) have their own small recipes and are deducted on top of the base product when the customer selects them.
 
+## Packaging Bag Rule
+
+Bags are deducted at the order level, based on the total number of cup-equivalent items in the order, not as a fixed recipe quantity per drink.
+
+* One bag can carry up to 2 cups.
+* Bag usage is calculated as:
+
+```text
+bags used = ceil(cup-equivalent count / 2)
+```
+
+* If the order has 1 cup, the system deducts 1 bag.
+* If the order has 3 cups, the system deducts 2 bags.
+* External ice counts as 1 cup-equivalent item because it occupies cup space in the bag.
+
 ## Deducting from Stock
 
 When an order is confirmed as paid (WhatsApp) or received (HungerStation), the system:
 
 * Reads each product and add-on in the order.
 * Multiplies each recipe quantity by the ordered quantity.
+* Calculates bag consumption from the total cup-equivalent count for the order.
 * Subtracts the totals from current stock.
 
 ### Example
@@ -531,7 +547,10 @@ Order: 2 × Iced Matcha Latte.
 Matcha used = 5 g × 2 = 10 g
 Milk used   = 200 ml × 2 = 400 ml
 Cups used   = 1 × 2 = 2 pieces
+Bags used   = ceil(2 ÷ 2) = 1 piece
 ```
+
+If the order contains 2 drinks plus 1 external ice, the cup-equivalent count is 3 and the system deducts 2 bags.
 
 ## Restocking
 
